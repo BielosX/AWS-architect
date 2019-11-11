@@ -1,0 +1,51 @@
+Parameters:
+    KeyPair:
+        Type: String
+    AvZone:
+        Type: String
+        Default: "us-east-1a"
+Resources:
+    MyClusterPlacementGroup:
+        Type: AWS::EC2::PlacementGroup
+        Properties:
+            Strategy: "spread"
+    MySecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "This is a security group"
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 22
+                    ToPort: 22
+    MyVolume:
+        Type: AWS::EC2::Volume
+        Properties:
+            AvailabilityZone: !Ref AvZone
+            Size: 1
+    MyEC2:
+        Type: AWS::EC2::Instance
+        DependsOn:
+            - MySecurityGroup
+            - MyClusterPlacementGroup
+        Properties:
+            KeyName: !Ref KeyPair
+            InstanceType: "t2.micro"
+            ImageId: "ami-00dc79254d0461090"
+            AvailabilityZone: !Ref AvZone
+            PlacementGroupName: !Ref MyClusterPlacementGroup
+            SecurityGroupIds:
+                - !GetAtt MySecurityGroup.GroupId
+            UserData:
+                Fn::Base64:
+                    !Sub |
+                        #!/bin/bash -xe
+                        echo "Hello World" > /hello.txt
+    MyVolumeAttach:
+        Type: AWS::EC2::VolumeAttachment
+        DependsOn: MyEC2
+        Properties:
+            Device: "/dev/sdb"
+            InstanceId: !Ref MyEC2
+            VolumeId: !Ref MyVolume

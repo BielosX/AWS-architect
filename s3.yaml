@@ -1,0 +1,46 @@
+Parameters:
+    MyBucketName:
+        Type: String
+Resources:
+    MyCloudFrontDistr:
+        Type: AWS::CloudFront::Distribution
+        DependsOn: MyBucket
+        Properties:
+            DistributionConfig:
+                Enabled: true
+                DefaultCacheBehavior:
+                    ViewerProtocolPolicy: "allow-all"
+                    TargetOriginId: !Sub 'S3-${MyBucketName}'
+                    ForwardedValues:
+                        QueryString: false
+                Origins:
+                    -
+                        DomainName: !GetAtt MyBucket.DomainName
+                        Id: !Sub 'S3-${MyBucketName}'
+                        S3OriginConfig:
+                            OriginAccessIdentity: ''
+    MyBucketPolicy:
+        Type: AWS::S3::BucketPolicy
+        DependsOn: MyBucket
+        Properties:
+            Bucket: !Ref MyBucket
+            PolicyDocument:
+                Statement:
+                    -
+                        Action:
+                            - "s3:GetObject"
+                        Effect: "Allow"
+                        Principal: "*"
+                        Resource:
+                            - !Sub 'arn:aws:s3:::${MyBucketName}/index.html'
+                            - !Sub 'arn:aws:s3:::${MyBucketName}/error.html'
+    MyBucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Ref MyBucketName
+            Tags:
+                - Key: Name
+                  Value: !Ref MyBucketName
+            WebsiteConfiguration:
+                ErrorDocument: error.html
+                IndexDocument: index.html
