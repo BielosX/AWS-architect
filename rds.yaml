@@ -1,0 +1,78 @@
+Parameters:
+    KeyPair:
+        Type: String
+    AvZone:
+        Type: String
+        Default: "us-east-1a"
+    DbName:
+        Type: String
+        Default: "testdb"
+    DBPort:
+        Type: Number
+        Default: 3306
+    OwnerId:
+        Type: Number
+Resources:
+    MyEC2SecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "This is a security group"
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 22
+                    ToPort: 22
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: !Ref DBPort
+                    ToPort: !Ref DBPort
+    MyDbSecurityGroup:
+        Type: AWS::RDS::DBSecurityGroup
+        DependsOn: MyEC2SecurityGroup
+        Properties:
+            GroupDescription: "This is a db security group"
+            DBSecurityGroupIngress:
+                -
+                    EC2SecurityGroupId: !GetAtt MyEC2SecurityGroup.GroupId
+                    EC2SecurityGroupOwnerId: !Ref OwnerId
+    MyMysqlDB:
+        Type: AWS::RDS::DBInstance
+        DependsOn:
+            - MyEC2SecurityGroup
+            - MyDbSecurityGroup
+        Properties:
+            AvailabilityZone: !Ref AvZone
+            DBName: !Ref DbName
+            Engine: "mysql"
+            EngineVersion: "8.0.16"
+            MasterUsername: "admin"
+            MasterUserPassword: "frytkiZKeczupem1!"
+            DBInstanceClass: "db.t2.micro"
+            DBInstanceIdentifier: "my-mysql-db"
+            AllocatedStorage: "20"
+            BackupRetentionPeriod: 0
+            Port: !Ref DBPort
+            DBSecurityGroups:
+                - !Ref MyDbSecurityGroup
+    MyEC2:
+        Type: AWS::EC2::Instance
+        DependsOn:
+            - MyEC2SecurityGroup
+            - MyMysqlDB
+        Properties:
+            KeyName: !Ref KeyPair
+            InstanceType: "t2.micro"
+            ImageId: "ami-00dc79254d0461090"
+            AvailabilityZone: !Ref AvZone
+            SecurityGroupIds:
+                - !GetAtt MyEC2SecurityGroup.GroupId
+            UserData:
+                Fn::Base64:
+                    !Sub |
+                        #!/bin/bash -xe
+                        echo "${MyMysqlDB.Endpoint.Address}" > /mysql-addr.txt
+                        echo "${MyMysqlDB.Endpoint.Port}" > /mysql-port.txt
+                        yum update -y
+                        yum install mysql -y
