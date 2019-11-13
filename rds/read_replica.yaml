@@ -3,20 +3,17 @@ Parameters:
         Type: String
     AvZone:
         Type: String
-        Default: "us-east-1a"
-    DbName:
+    OwnerId:
+        Type: Number
+    SourceId:
         Type: String
-        Default: "testdb"
+    SourceRegion:
+        Type: String
+    InstanceId:
+        Type: String
     DBPort:
         Type: Number
         Default: 3306
-    OwnerId:
-        Type: Number
-    MultiAZ:
-        Type: String
-        Default: "false"
-Conditions:
-    MultiAZDB: !Equals [!Ref MultiAZ, "true"]
 Resources:
     MyEC2SecurityGroup:
         Type: AWS::EC2::SecurityGroup
@@ -42,24 +39,21 @@ Resources:
                 -
                     EC2SecurityGroupId: !GetAtt MyEC2SecurityGroup.GroupId
                     EC2SecurityGroupOwnerId: !Ref OwnerId
-    MyMysqlDB:
+    MyMysqlDBReadReplica:
         Type: AWS::RDS::DBInstance
         DependsOn:
             - MyEC2SecurityGroup
             - MyDbSecurityGroup
         Properties:
-            AvailabilityZone: !If [MultiAZDB, !Ref "AWS::NoValue", !Ref AvZone]
-            DBName: !Ref DbName
+            AvailabilityZone: !Ref AvZone
             Engine: "mysql"
             EngineVersion: "8.0.16"
-            MasterUsername: "admin"
-            MasterUserPassword: "frytkiZKeczupem1!"
             DBInstanceClass: "db.t2.micro"
-            DBInstanceIdentifier: "my-mysql-db"
+            DBInstanceIdentifier: !Ref InstanceId
             AllocatedStorage: "20"
-            MultiAZ: !Ref MultiAZ
-            BackupRetentionPeriod: 1
             PubliclyAccessible: false
+            SourceDBInstanceIdentifier: !Ref SourceId
+            SourceRegion: !Ref SourceRegion
             Port: !Ref DBPort
             DBSecurityGroups:
                 - !Ref MyDbSecurityGroup
@@ -67,7 +61,7 @@ Resources:
         Type: AWS::EC2::Instance
         DependsOn:
             - MyEC2SecurityGroup
-            - MyMysqlDB
+            - MyMysqlDBReadReplica
         Properties:
             KeyName: !Ref KeyPair
             InstanceType: "t2.micro"
@@ -79,7 +73,7 @@ Resources:
                 Fn::Base64:
                     !Sub |
                         #!/bin/bash -xe
-                        echo "${MyMysqlDB.Endpoint.Address}" > /mysql-addr.txt
-                        echo "${MyMysqlDB.Endpoint.Port}" > /mysql-port.txt
+                        echo "${MyMysqlDBReadReplica.Endpoint.Address}" > /mysql-replica-addr.txt
+                        echo "${MyMysqlDBReadReplica.Endpoint.Port}" > /mysql-replica-port.txt
                         yum update -y
                         yum install mysql -y
