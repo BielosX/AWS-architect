@@ -1,0 +1,133 @@
+Parameters:
+    TableName:
+        Type: String
+    KeyPair:
+        Type: String
+Resources:
+    MyTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            TableName: !Ref TableName
+            BillingMode: "PROVISIONED"
+            ProvisionedThroughput:
+                ReadCapacityUnits: 100
+                WriteCapacityUnits: 100
+            AttributeDefinitions:
+                -
+                    AttributeName: "PESEL"
+                    AttributeType: "S"
+                -
+                    AttributeName: "FirstName"
+                    AttributeType: "S"
+                -
+                    AttributeName: "LastName"
+                    AttributeType: "S"
+                -
+                    AttributeName: "Address"
+                    AttributeType: "S"
+            KeySchema:
+                -
+                    AttributeName: "PESEL"
+                    KeyType: "HASH"
+            GlobalSecondaryIndexes:
+                -
+                    IndexName: "FullName"
+                    ProvisionedThroughput:
+                        ReadCapacityUnits: 100
+                        WriteCapacityUnits: 100
+                    Projection:
+                        ProjectionType: "INCLUDE"
+                        NonKeyAttributes:
+                            - "Address"
+                    KeySchema:
+                        -
+                            AttributeName: "FirstName"
+                            KeyType: "HASH"
+                        -
+                            AttributeName: "LastName"
+                            KeyType: "RANGE"
+                -
+                    IndexName: "Addr"
+                    ProvisionedThroughput:
+                        ReadCapacityUnits: 100
+                        WriteCapacityUnits: 100
+                    KeySchema:
+                        -
+                            AttributeName: "Address"
+                            KeyType: "HASH"
+                    Projection:
+                        ProjectionType: "ALL"
+    MySecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "This is a security group"
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 22
+                    ToPort: 22
+    EC2DynamoDBRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    -
+                        Effect: Allow
+                        Principal:
+                            Service:
+                                - ec2.amazonaws.com
+                        Action:
+                            - 'sts:AssumeRole'
+            Policies:
+                -
+                    PolicyName: "EC2DynamoDBRole"
+                    PolicyDocument:
+                        Version: "2012-10-17"
+                        Statement:
+                            -
+                                Effect: "Allow"
+                                Action:
+                                    - "dynamodb:PutItem"
+                                    - "dynamodb:UpdateItem"
+                                    - "dynamodb:DeleteItem"
+                                    - "dynamodb:GetItem"
+                                    - "dynamodb:BatchGetItem"
+                                    - "dynamodb:Query"
+                                Resource:
+                                    - !Sub '${MyTable.Arn}'
+                                    - !Sub '${MyTable.Arn}/*'
+    EC2DynamoDBInstanceProfile:
+        Type: AWS::IAM::InstanceProfile
+        DependsOn: EC2DynamoDBRole
+        Properties:
+            InstanceProfileName: "DynamoDBAccessForEC2"
+            Roles:
+                - !Ref EC2DynamoDBRole
+    MyEC2:
+        Type: AWS::EC2::Instance
+        DependsOn:
+            - MyTable
+            - MySecurityGroup
+            - EC2DynamoDBInstanceProfile
+        Properties:
+            KeyName: !Ref KeyPair
+            InstanceType: "t2.micro"
+            ImageId: "ami-00dc79254d0461090"
+            IamInstanceProfile: !Ref EC2DynamoDBInstanceProfile
+            SecurityGroupIds:
+                - !GetAtt MySecurityGroup.GroupId
+            UserData:
+                Fn::Base64:
+                    !Sub |
+                        #!/bin/bash -xe
+                        echo "${MyTable}" > /dynamodb-table-name.txt
+                        cat << EOF > person.json
+                        {
+                            "PESEL": {"S": "97051718348"},
+                            "FirstName": {"S": "Tomasz"},
+                            "LastName": {"S": "Z Akwinu"},
+                            "Address": {"S": "Akwin"}
+                        }
+                        EOF
