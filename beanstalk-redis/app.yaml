@@ -1,4 +1,6 @@
 Parameters:
+    DeployBucketName:
+        Type: String
     ApplicationName:
         Type: String
     AppPort:
@@ -8,6 +10,10 @@ Parameters:
         Type: Number
         Default: 6379
 Resources:
+    MyDeployBucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Ref DeployBucketName
     MySecurityGroup:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -70,3 +76,8 @@ Resources:
                     Namespace: "aws:autoscaling:launchconfiguration"
                     OptionName: "SecurityGroups"
                     Value: !Sub '${MySecurityGroup}'
+Outputs:
+    DeployStackName:
+        Value: !Ref MyDeployBucket
+    BeanstalkTemplateName:
+        Value: !Ref MyConfigurationTemplate
