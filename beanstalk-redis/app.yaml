@@ -9,6 +9,8 @@ Parameters:
     RedisPort:
         Type: Number
         Default: 6379
+    EnvName:
+        Type: String
 Resources:
     MyDeployBucket:
         Type: AWS::S3::Bucket
@@ -76,8 +78,9 @@ Resources:
                     Namespace: "aws:autoscaling:launchconfiguration"
                     OptionName: "SecurityGroups"
                     Value: !Sub '${MySecurityGroup}'
-Outputs:
-    DeployStackName:
-        Value: !Ref MyDeployBucket
-    BeanstalkTemplateName:
-        Value: !Ref MyConfigurationTemplate
+    MyAppEnv:
+        Type: AWS::ElasticBeanstalk::Environment
+        Properties:
+            ApplicationName: !Ref ApplicationName
+            TemplateName: !Ref MyConfigurationTemplate
+            EnvironmentName: !Ref EnvName
