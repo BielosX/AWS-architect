@@ -1,0 +1,54 @@
+Resources:
+    MyVPC:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: "10.0.0.0/16"
+            InstanceTenancy: "default"
+    MyPublicSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1a"
+            CidrBlock: "10.0.1.0/24"
+            MapPublicIpOnLaunch: true
+            VpcId: !Ref MyVPC
+    MyPrivateSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1b"
+            CidrBlock: "10.0.2.0/24"
+            MapPublicIpOnLaunch: false
+            VpcId: !Ref MyVPC
+    MyInternetGateway:
+        Type: AWS::EC2::InternetGateway
+    MyIGWAttach:
+        Type: AWS::EC2::VPCGatewayAttachment
+        DependsOn:
+            - MyVPC
+            - MyInternetGateway
+        Properties:
+            InternetGatewayId: !Ref MyInternetGateway
+            VpcId: !Ref MyVPC
+    MyPublicRoute:
+        Type: AWS::EC2::RouteTable
+        DependsOn: MyVPC
+        Properties:
+            VpcId: !Ref MyVPC
+    ToIGWRoute:
+        Type: AWS::EC2::Route
+        DependsOn:
+            - MyPublicRoute
+            - MyInternetGateway
+        Properties:
+            RouteTableId: !Ref MyPublicRoute
+            DestinationCidrBlock: "0.0.0.0/0"
+            GatewayId: !Ref MyInternetGateway
+    MyPublicSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn:
+            - MyPublicRoute
+            - MyPublicSubnet
+        Properties:
+            RouteTableId: !Ref MyPublicRoute
+            SubnetId: !Ref MyPublicSubnet
