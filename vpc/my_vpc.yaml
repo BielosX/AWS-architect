@@ -52,3 +52,12 @@ Resources:
         Properties:
             RouteTableId: !Ref MyPublicRoute
             SubnetId: !Ref MyPublicSubnet
+Outputs:
+    MyVPCId:
+        Value: !Ref MyVPC
+        Export:
+            Name: !Sub "${AWS::StackName}-VpcId"
+    MyPublicSubnetId:
+        Value: !Ref MyPublicSubnet
+        Export:
+            Name: !Sub "${AWS::StackName}-PublicSubnetId"

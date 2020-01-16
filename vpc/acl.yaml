@@ -1,0 +1,32 @@
+Parameters:
+    VPCStackName:
+        Type: String
+    ForbiddenIP:
+        Type: String
+Resources:
+    MyACL:
+        Type: AWS::EC2::NetworkAcl
+        Properties:
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${VPCStackName}-VpcId"
+    MyDenyIpEgressACL:
+        Type: AWS::EC2::NetworkAclEntry
+        DependsOn: MyACL
+        Properties:
+            CidrBlock: !Sub "${ForbiddenIP}/32"
+            Egress: true
+            NetworkAclId: !Ref MyACL
+            Protocol: 80
+            RuleAction: "deny"
+            RuleNumber: 100
+    MyDenyIpIngressAcl:
+        Type: AWS::EC2::NetworkAclEntry
+        DependsOn: MyACL
+        Properties:
+            CidrBlock: !Sub "${ForbiddenIP}/32"
+            Egress: false
+            NetworkAclId: !Ref MyACL
+            Protocol: 80
+            RuleAction: "deny"
+            RuleNumber: 100
