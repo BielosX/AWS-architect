@@ -1,0 +1,30 @@
+Resources:
+    MyLambdaIamRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Principal:
+                            Service: "lambda.amazonaws.com"
+                        Action:
+                            - "sts:AssumeRole"
+            ManagedPolicyArns:
+                - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+    MyLambda:
+        Type: AWS::Lambda::Function
+        DependsOn: MyLambdaIamRole
+        Properties:
+            Role: !GetAtt MyLambdaIamRole.Arn
+            Handler: "index.handle"
+            Runtime: "python3.7"
+            Code:
+                ZipFile: |
+                    import json
+                    def handle(event, context):
+                        return {
+                            'statusCode': 200,
+                            'body': json.dumps('Hello from Lambda!')
+                        }
