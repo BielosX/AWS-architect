@@ -1,0 +1,49 @@
+Resources:
+    MyApi:
+        Type: AWS::ApiGateway::RestApi
+        Properties:
+            Body:
+                swagger: "2.0"
+                info:
+                    title: "My App"
+                    version: "2020-01-18"
+                schemes:
+                    - "https"
+                paths:
+                    /hello:
+                        get:
+                            consumes:
+                                - "application/json"
+                            produces:
+                                - "application/json"
+                            responses:
+                                '200':
+                                    description: "Just Hello World"
+                                    content:
+                                        application/json:
+                                            schema:
+                                                type: string
+                            x-amazon-apigateway-integration:
+                                responses:
+                                    default:
+                                        statusCode: "200"
+                                        responseTemplates:
+                                            application/json: "\"Hello World\""
+                                requestTemplates:
+                                    application/json: "{\"statusCode\": 200}"
+                                passthroughBehavior: "when_no_match"
+                                type: "mock"
+    MyApiDeployment:
+        Type: AWS::ApiGateway::Deployment
+        DependsOn: MyApi
+        Properties:
+            RestApiId: !Ref MyApi
+    MyApiStage:
+        Type: AWS::ApiGateway::Stage
+        DependsOn:
+            - MyApiDeployment
+            - MyApi
+        Properties:
+            DeploymentId: !Ref MyApiDeployment
+            RestApiId: !Ref MyApi
+            StageName: "stage"
