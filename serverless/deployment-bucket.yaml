@@ -1,0 +1,10 @@
+Resources:
+    MyLambdaDeploymentS3Bucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Sub "bielosx-${AWS::AccountId}-${AWS::StackName}-lambda-deployment"
+Outputs:
+    DeploymentBucket:
+        Value: !Ref MyLambdaDeploymentS3Bucket
+        Export:
+            Name: !Sub "${AWS::StackName}-LambdaBucket"

@@ -1,4 +1,11 @@
+Parameters:
+    BucketStackName:
+        Type: String
 Resources:
+    MyBooksBucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Sub '${AWS::StackName}-${AWS::AccountId}-books-bucket'
     MyLambdaIamRole:
         Type: AWS::IAM::Role
         Properties:
@@ -15,16 +22,18 @@ Resources:
                 - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
     MyLambda:
         Type: AWS::Lambda::Function
-        DependsOn: MyLambdaIamRole
+        DependsOn:
+            - MyLambdaIamRole
+            - MyBooksBucket
         Properties:
             Role: !GetAtt MyLambdaIamRole.Arn
-            Handler: "index.handle"
+            Handler: "main.main"
             Runtime: "python3.7"
+            Environment:
+                Variables:
+                    BUCKET_NAME: !Ref MyBooksBucket
             Code:
-                ZipFile: |
-                    import json
-                    def handle(event, context):
-                        return {
-                            'statusCode': 200,
-                            'body': json.dumps('Hello from Lambda!')
-                        }
+                S3Bucket:
+                    Fn::ImportValue:
+                        !Sub "${BucketStackName}-LambdaBucket"
+                S3Key: "my-lambda-deployment.zip"
