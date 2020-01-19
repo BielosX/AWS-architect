@@ -6,7 +6,7 @@ import os
 def handle_list(bucket):
     return {
             'statusCode': 200,
-            'body': json.dumps(map(bucket.objects.all(), lambda obj: obj.key))
+            'body': json.dumps(list(map(lambda obj: obj.key, bucket.objects.all())))
             }
 
 def handle_get(params, bucket):
