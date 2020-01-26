@@ -1,3 +1,6 @@
+Parameters:
+    MyLambdaStack:
+        Type: String
 Resources:
     MyApi:
         Type: AWS::ApiGateway::RestApi
@@ -10,6 +13,25 @@ Resources:
                 schemes:
                     - "https"
                 paths:
+                    /lambda:
+                        x-amazon-apigateway-any-method:
+                            responses:
+                                '200':
+                                    description: "200 OK"
+                            x-amazon-apigateway-integration:
+                                uri: !Sub
+                                    - "arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+                                    -
+                                        Region: !Sub "${AWS::Region}"
+                                        LambdaArn:
+                                            Fn::ImportValue:
+                                                !Sub "${MyLambdaStack}-MyLambdaArn"
+                                responses:
+                                    ".*":
+                                        statusCode: "200"
+                                passthroughBehavior: "when_no_match"
+                                type: "aws_proxy"
+                                httpMethod: "POST"
                     /hello:
                         get:
                             consumes:

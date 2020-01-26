@@ -37,3 +37,8 @@ Resources:
                     Fn::ImportValue:
                         !Sub "${BucketStackName}-LambdaBucket"
                 S3Key: "my-lambda-deployment.zip"
+Outputs:
+    MyLambdaArn:
+        Value: !GetAtt MyLambda.Arn
+        Export:
+            Name: !Sub "${AWS::StackName}-MyLambdaArn"
