@@ -34,10 +34,18 @@ Resources:
                         Resource:
                             - !Sub 'arn:aws:s3:::${MyBucketName}/index.html'
                             - !Sub 'arn:aws:s3:::${MyBucketName}/error.html'
-    MyBucket:
+    MyLoggingBucket:
         Type: AWS::S3::Bucket
         Properties:
+            BucketName: !Sub "${MyBucketName}-logs"
+            AccessControl: "LogDeliveryWrite"
+    MyBucket:
+        Type: AWS::S3::Bucket
+        DependsOn: MyLoggingBucket
+        Properties:
             BucketName: !Ref MyBucketName
+            LoggingConfiguration:
+                DestinationBucketName: !Ref MyLoggingBucket
             Tags:
                 - Key: Name
                   Value: !Ref MyBucketName
