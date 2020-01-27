@@ -13,8 +13,14 @@ Resources:
                 schemes:
                     - "https"
                 paths:
-                    /lambda:
+                    "/{proxy+}":
                         x-amazon-apigateway-any-method:
+                            parameters:
+                                -
+                                    name: "proxy"
+                                    in: "path"
+                                    required: true
+                                    type: "string"
                             responses:
                                 '200':
                                     description: "200 OK"

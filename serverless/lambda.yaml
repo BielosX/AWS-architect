@@ -37,6 +37,13 @@ Resources:
                     Fn::ImportValue:
                         !Sub "${BucketStackName}-LambdaBucket"
                 S3Key: "my-lambda-deployment.zip"
+    MyLambdaInvokePermisson:
+        Type: AWS::Lambda::Permission
+        DependsOn: MyLambda
+        Properties:
+            Action: "lambda:InvokeFunction"
+            FunctionName: !GetAtt MyLambda.Arn
+            Principal: "apigateway.amazonaws.com"
 Outputs:
     MyLambdaArn:
         Value: !GetAtt MyLambda.Arn
