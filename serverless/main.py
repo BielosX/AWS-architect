@@ -2,18 +2,32 @@ import json
 import boto3
 import re
 import os
+import botocore
+
+def get_object(object_summary):
+    body = json.loads(object_summary.get()['Body'].read())
+    body['bookId'] = object_summary.key
+    return body
 
 def handle_list(bucket):
     return {
             'statusCode': 200,
-            'body': json.dumps(list(map(lambda obj: obj.key, bucket.objects.all())))
+            'body': json.dumps(list(map(lambda obj: get_object(obj), bucket.objects.all())))
             }
 
 def handle_get(params, bucket):
-    return {
-            'statusCode': 200,
-            'body': json.dumps('Hello')
-            }
+    book_id = params['book_id']
+    try:
+        obj = bucket.Object(book_id)
+        body = json.loads(obj.get()['Body'].read().decode('utf-8'))
+        body['bookId'] = book_id
+        return {'statusCode': 200, 'body': json.dumps(body)}
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == '404':
+            return {'statusCode': 404, 'body': json.dumps('Not found')}
+        else:
+            return {'statusCode': 500, 'body': json.dumps('Internal Server Error')}
 
 def handle_post(params, bucket):
     return {
@@ -23,8 +37,8 @@ def handle_post(params, bucket):
 
 
 handlers = [
+        (('GET', re.compile('/books/(?P<book_id>\d+)')), handle_get),
         (('GET', re.compile('/books')), lambda params,bucket: handle_list(bucket)),
-        (('GET', re.compile('/books/(?P<book_id>)\d+')), handle_get),
         (('POST', re.compile('/books')), handle_post)
         ]
 
