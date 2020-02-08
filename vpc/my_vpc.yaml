@@ -2,14 +2,14 @@ Resources:
     MyVPC:
         Type: AWS::EC2::VPC
         Properties:
-            CidrBlock: "10.0.0.0/16"
+            CidrBlock: "10.0.0.0/24"
             InstanceTenancy: "default"
     MyPublicSubnet:
         Type: AWS::EC2::Subnet
         DependsOn: MyVPC
         Properties:
             AvailabilityZone: "us-east-1a"
-            CidrBlock: "10.0.1.0/24"
+            CidrBlock: "10.0.0.0/25"
             MapPublicIpOnLaunch: true
             VpcId: !Ref MyVPC
     MyPrivateSubnet:
@@ -17,7 +17,7 @@ Resources:
         DependsOn: MyVPC
         Properties:
             AvailabilityZone: "us-east-1b"
-            CidrBlock: "10.0.2.0/24"
+            CidrBlock: "10.0.0.128/25"
             MapPublicIpOnLaunch: false
             VpcId: !Ref MyVPC
     MyInternetGateway:

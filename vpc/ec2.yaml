@@ -1,0 +1,33 @@
+Parameters:
+    KeyPair:
+        Type: String
+    VpcId:
+        Type: String
+    VPCSubnetId:
+        Type: String
+Resources:
+    MySecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "This is a security group"
+            VpcId: !Ref VpcId
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 22
+                    ToPort: 22
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "icmp"
+                    FromPort: -1
+                    ToPort: -1
+    MyInstance:
+        Type: AWS::EC2::Instance
+        Properties:
+            KeyName: !Ref KeyPair
+            InstanceType: "t2.micro"
+            ImageId: "ami-00dc79254d0461090"
+            SubnetId: !Ref VPCSubnetId
+            SecurityGroupIds:
+                - !GetAtt MySecurityGroup.GroupId

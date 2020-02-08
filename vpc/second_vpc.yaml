@@ -1,0 +1,72 @@
+Parameters:
+    FirstVPCStack:
+        Type: String
+    ServerCertArn:
+        Type: String
+    RootCertChainArn:
+        Type: String
+Resources:
+    MyVPC:
+        Type: AWS::EC2::VPC
+        Properties:
+            InstanceTenancy: "default"
+            CidrBlock: "172.16.0.0/24"
+    MyPrivateSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1b"
+            CidrBlock: "172.16.0.0/25"
+            MapPublicIpOnLaunch: false
+            VpcId: !Ref MyVPC
+    MyVPCPeering:
+        Type: AWS::EC2::VPCPeeringConnection
+        DependsOn: MyVPC
+        Properties:
+            VpcId: !Ref MyVPC
+            PeerVpcId:
+                Fn::ImportValue:
+                    !Sub "${FirstVPCStack}-VpcId"
+    MyClientVpnEndpoint:
+        Type: AWS::EC2::ClientVpnEndpoint
+        Properties:
+            ClientCidrBlock: "192.168.0.0/22"
+            TransportProtocol: "tcp"
+            ServerCertificateArn: !Ref ServerCertArn
+            ConnectionLogOptions:
+                Enabled: false
+            AuthenticationOptions:
+                -
+                    Type: "certificate-authentication"
+                    MutualAuthentication:
+                        ClientRootCertificateChainArn: !Ref RootCertChainArn
+    MyVPNNetworkAssoc:
+        Type: AWS::EC2::ClientVpnTargetNetworkAssociation
+        DependsOn:
+            - MyClientVpnEndpoint
+            - MyPrivateSubnet
+        Properties:
+            ClientVpnEndpointId: !Ref MyClientVpnEndpoint
+            SubnetId: !Ref MyPrivateSubnet
+    MyClientVpnRoute:
+        Type: AWS::EC2::ClientVpnRoute
+        DependsOn:
+            - MyVPNNetworkAssoc
+            - MyPrivateSubnet
+            - MyClientVpnEndpoint
+        Properties:
+            ClientVpnEndpointId: !Ref MyClientVpnEndpoint
+            DestinationCidrBlock: "0.0.0.0/0"
+            TargetVpcSubnetId: !Ref MyPrivateSubnet
+    MyAuthorizationRule:
+        Type: AWS::EC2::ClientVpnAuthorizationRule
+        DependsOn: MyClientVpnEndpoint
+        Properties:
+            AuthorizeAllGroups: true
+            ClientVpnEndpointId: !Ref MyClientVpnEndpoint
+            TargetNetworkCidr: "172.16.0.0/25"
+Outputs:
+    MyVPCId:
+        Value: !Ref MyVPC
+        Export:
+            Name: !Sub "${AWS::StackName}-VpcId"
