@@ -1,0 +1,61 @@
+Parameters:
+    ConnectingVPCStack:
+        Type: String
+    ReceivingVPCStack:
+        Type: String
+Resources:
+    MyConnectingVPCRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${ConnectingVPCStack}-VpcId"
+    MyReceivingVPCRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${ReceivingVPCStack}-VpcId"
+    MyVPCPeering:
+        Type: AWS::EC2::VPCPeeringConnection
+        Properties:
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${ConnectingVPCStack}-VpcId"
+            PeerVpcId:
+                Fn::ImportValue:
+                    !Sub "${ReceivingVPCStack}-VpcId"
+    MyConnectingStackPeeringRoute:
+        Type: AWS::EC2::Route
+        DependsOn:
+            - MyVPCPeering
+            - MyConnectingVPCRouteTable
+        Properties:
+            DestinationCidrBlock: "10.0.0.0/24"
+            RouteTableId: !Ref MyConnectingVPCRouteTable
+            VpcPeeringConnectionId: !Ref MyVPCPeering
+    MyReceivingStackPeeringRoute:
+        Type: AWS::EC2::Route
+        DependsOn:
+            - MyVPCPeering
+            - MyReceivingVPCRouteTable
+        Properties:
+            DestinationCidrBlock: "172.16.0.0/24"
+            RouteTableId: !Ref MyReceivingVPCRouteTable
+            VpcPeeringConnectionId: !Ref MyVPCPeering
+    MyConnectingSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn: MyConnectingVPCRouteTable
+        Properties:
+            RouteTableId: !Ref MyConnectingVPCRouteTable
+            SubnetId:
+                Fn::ImportValue:
+                    !Sub "${ConnectingVPCStack}-PrivateSubnetId"
+    MyReceivingSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn: MyReceivingVPCRouteTable
+        Properties:
+            RouteTableId: !Ref MyReceivingVPCRouteTable
+            SubnetId:
+                Fn::ImportValue:
+                    !Sub "${ReceivingVPCStack}-PrivateSubnetId"
