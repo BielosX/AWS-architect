@@ -6,6 +6,75 @@ Resources:
         Type: AWS::S3::Bucket
         Properties:
             BucketName: !Sub '${AWS::StackName}-${AWS::AccountId}-books-bucket'
+    MyVPC:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: "10.0.0.0/24"
+    MyRouteTable:
+        Type: AWS::EC2::RouteTable
+        DependsOn: MyVPC
+        Properties:
+            VpcId: !Ref MyVPC
+    MyVPCS3Endpoint:
+        Type: AWS::EC2::VPCEndpoint
+        DependsOn:
+            - MyVPC
+            - MyRouteTable
+        Properties:
+            VpcId: !Ref MyVPC
+            VpcEndpointType: "Gateway"
+            ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+            RouteTableIds:
+                - !Ref MyRouteTable
+    MyFirstPrivateSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1b"
+            CidrBlock: "10.0.0.0/25"
+            MapPublicIpOnLaunch: false
+            VpcId: !Ref MyVPC
+    MySecondPrivateSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1a"
+            CidrBlock: "10.0.0.128/25"
+            MapPublicIpOnLaunch: false
+            VpcId: !Ref MyVPC
+    MyFirstPrivateSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn:
+            - MyRouteTable
+            - MyFirstPrivateSubnet
+        Properties:
+            RouteTableId: !Ref MyRouteTable
+            SubnetId: !Ref MyFirstPrivateSubnet
+    MySecondPrivateSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn:
+            - MyRouteTable
+            - MySecondPrivateSubnet
+        Properties:
+            RouteTableId: !Ref MyRouteTable
+            SubnetId: !Ref MySecondPrivateSubnet
+    MySecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        DependsOn: MyVPC
+        Properties:
+            GroupDescription: "This is a security group"
+            VpcId: !Ref MyVPC
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 0
+                    ToPort: 65535
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "udp"
+                    FromPort: 0
+                    ToPort: 65535
     MyLambdaIamRole:
         Type: AWS::IAM::Role
         Properties:
@@ -20,15 +89,25 @@ Resources:
                             - "sts:AssumeRole"
             ManagedPolicyArns:
                 - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+                - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
     MyLambda:
         Type: AWS::Lambda::Function
         DependsOn:
             - MyLambdaIamRole
             - MyBooksBucket
+            - MySecurityGroup
+            - MyFirstPrivateSubnet
+            - MySecondPrivateSubnet
         Properties:
             Role: !GetAtt MyLambdaIamRole.Arn
             Handler: "main.main"
             Runtime: "python3.7"
+            VpcConfig:
+                SecurityGroupIds:
+                    - !Ref MySecurityGroup
+                SubnetIds:
+                    - !Ref MyFirstPrivateSubnet
+                    - !Ref MySecondPrivateSubnet
             Environment:
                 Variables:
                     BUCKET_NAME: !Ref MyBooksBucket
