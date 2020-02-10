@@ -221,7 +221,7 @@ Resources:
                 Interval: 20
                 Timeout: 10
                 UnhealthyThreshold: 3
-                Target: "HTTP:80/index.html"
+                Target: "HTTP:80/"
             Listeners:
                 -
                     InstancePort: 80
@@ -242,7 +242,7 @@ Resources:
             MinSize: 2
             MaxSize: 6
             HealthCheckType: "ELB"
-            HealthCheckGracePeriod: 20
+            HealthCheckGracePeriod: 240
             LoadBalancerNames:
                 - !Ref MyClassicLoadBalancer
             VPCZoneIdentifier:
