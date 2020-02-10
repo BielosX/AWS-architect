@@ -1,0 +1,250 @@
+Parameters:
+    KeyPair:
+        Type: String
+Resources:
+    MyVPC:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: "10.0.0.0/22"
+            InstanceTenancy: "default"
+    MyInternetGateway:
+        Type: AWS::EC2::InternetGateway
+    MyIGWAttach:
+        Type: AWS::EC2::VPCGatewayAttachment
+        DependsOn:
+            - MyVPC
+            - MyInternetGateway
+        Properties:
+            InternetGatewayId: !Ref MyInternetGateway
+            VpcId: !Ref MyVPC
+    MyFirstPrivateSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1a"
+            CidrBlock: "10.0.0.0/24"
+            MapPublicIpOnLaunch: false
+            VpcId: !Ref MyVPC
+    MySecondPrivateSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1b"
+            CidrBlock: "10.0.1.0/24"
+            MapPublicIpOnLaunch: false
+            VpcId: !Ref MyVPC
+    MyFirstPublicSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1a"
+            CidrBlock: "10.0.2.0/24"
+            MapPublicIpOnLaunch: true
+            VpcId: !Ref MyVPC
+    MySecondPublicSubnet:
+        Type: AWS::EC2::Subnet
+        DependsOn: MyVPC
+        Properties:
+            AvailabilityZone: "us-east-1b"
+            CidrBlock: "10.0.3.0/24"
+            MapPublicIpOnLaunch: true
+            VpcId: !Ref MyVPC
+    MyPublicRoute:
+        Type: AWS::EC2::RouteTable
+        DependsOn: MyVPC
+        Properties:
+            VpcId: !Ref MyVPC
+    ToIGWRoute:
+        Type: AWS::EC2::Route
+        DependsOn:
+            - MyPublicRoute
+            - MyInternetGateway
+        Properties:
+            RouteTableId: !Ref MyPublicRoute
+            DestinationCidrBlock: "0.0.0.0/0"
+            GatewayId: !Ref MyInternetGateway
+    MyFirstPublicSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn:
+            - MyPublicRoute
+            - MyFirstPublicSubnet
+        Properties:
+            RouteTableId: !Ref MyPublicRoute
+            SubnetId: !Ref MyFirstPublicSubnet
+    MySecondPublicSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn:
+            - MyPublicRoute
+            - MySecondPublicSubnet
+        Properties:
+            RouteTableId: !Ref MyPublicRoute
+            SubnetId: !Ref MySecondPublicSubnet
+    MyFirstEIP:
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: "vpc"
+    MySecondEIP:
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: "vpc"
+    MyFirstNATGateway:
+        Type: AWS::EC2::NatGateway
+        DependsOn:
+            - MyFirstEIP
+            - MyFirstPublicSubnet
+        Properties:
+            AllocationId: !GetAtt MyFirstEIP.AllocationId
+            SubnetId: !Ref MyFirstPublicSubnet
+    MyFirstPrivateRoute:
+        Type: AWS::EC2::RouteTable
+        DependsOn: MyVPC
+        Properties:
+            VpcId: !Ref MyVPC
+    FirstToNATGateway:
+        Type: AWS::EC2::Route
+        DependsOn:
+            - MyFirstPrivateRoute
+            - MyFirstNATGateway
+        Properties:
+            RouteTableId: !Ref MyFirstPrivateRoute
+            DestinationCidrBlock: "0.0.0.0/0"
+            NatGatewayId: !Ref MyFirstNATGateway
+    MySecondNATGateway:
+        Type: AWS::EC2::NatGateway
+        DependsOn:
+            - MySecondEIP
+            - MySecondPublicSubnet
+        Properties:
+            AllocationId: !GetAtt MySecondEIP.AllocationId
+            SubnetId: !Ref MySecondPublicSubnet
+    MySecondPrivateRoute:
+        Type: AWS::EC2::RouteTable
+        DependsOn: MyVPC
+        Properties:
+            VpcId: !Ref MyVPC
+    SecondToNATGateway:
+        Type: AWS::EC2::Route
+        DependsOn:
+            - MySecondPrivateRoute
+            - MySecondNATGateway
+        Properties:
+            RouteTableId: !Ref MySecondPrivateRoute
+            DestinationCidrBlock: "0.0.0.0/0"
+            NatGatewayId: !Ref MySecondNATGateway
+    MyFirstPrivateSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn:
+            - MyFirstPrivateRoute
+            - MyFirstPrivateSubnet
+        Properties:
+            RouteTableId: !Ref MyFirstPrivateRoute
+            SubnetId: !Ref MyFirstPrivateSubnet
+    MySecondPrivateSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn:
+            - MySecondPrivateRoute
+            - MySecondPrivateSubnet
+        Properties:
+            RouteTableId: !Ref MySecondPrivateRoute
+            SubnetId: !Ref MySecondPrivateSubnet
+    MySecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        DependsOn: MyVPC
+        Properties:
+            GroupDescription: "This is a security group"
+            VpcId: !Ref MyVPC
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 80
+                    ToPort: 80
+    MyLaunchTemplate:
+        Type: AWS::EC2::LaunchTemplate
+        DependsOn: MySecurityGroup
+        Properties:
+            LaunchTemplateData:
+                KeyName: !Ref KeyPair
+                InstanceType: "t2.micro"
+                ImageId: "ami-00dc79254d0461090"
+                SecurityGroupIds:
+                    - !GetAtt MySecurityGroup.GroupId
+                UserData:
+                    Fn::Base64:
+                        !Sub |
+                            #!/bin/bash -xe
+                            yum update -y
+                            yum -y install httpd
+                            service httpd start
+                            chkconfig httpd on
+                            usermod -a -G apache ec2-user
+                            chown -R ec2-user:apache /var/www
+                            chmod 2775 /var/www
+                            find /var/www -type d -exec chmod 2775 {} \;
+                            find /var/www -type f -exec chmod 0664 {} \;
+                            IPADDR=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
+                            echo "<html><h1>Hello from $IPADDR</h1></html>" > /var/www/html/index.html
+    MyLoadBalancerSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        DependsOn:
+            - MyVPC
+            - MySecurityGroup
+        Properties:
+            GroupDescription: "This is a ELB security group"
+            VpcId: !Ref MyVPC
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 80
+                    ToPort: 80
+            SecurityGroupEgress:
+                -
+                    DestinationSecurityGroupId: !Ref MySecurityGroup
+                    IpProtocol: "tcp"
+                    FromPort: 80
+                    ToPort: 80
+    MyClassicLoadBalancer:
+        Type: AWS::ElasticLoadBalancing::LoadBalancer
+        DependsOn:
+            - MyFirstPublicSubnet
+            - MySecondPublicSubnet
+            - MyLoadBalancerSecurityGroup
+        Properties:
+            SecurityGroups:
+                - !Ref MyLoadBalancerSecurityGroup
+            Subnets:
+                - !Ref MyFirstPublicSubnet
+                - !Ref MySecondPublicSubnet
+            HealthCheck:
+                HealthyThreshold: 5
+                Interval: 20
+                Timeout: 10
+                UnhealthyThreshold: 3
+                Target: "HTTP:80/index.html"
+            Listeners:
+                -
+                    InstancePort: 80
+                    InstanceProtocol: "HTTP"
+                    LoadBalancerPort: 80
+                    Protocol: "HTTP"
+    MyAutoScalingGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        DependsOn:
+            - MyLaunchTemplate
+            - MyFirstPrivateSubnet
+            - MySecondPrivateSubnet
+            - MyClassicLoadBalancer
+        Properties:
+            LaunchTemplate:
+                LaunchTemplateId: !Ref MyLaunchTemplate
+                Version: 1
+            MinSize: 2
+            MaxSize: 6
+            HealthCheckType: "ELB"
+            HealthCheckGracePeriod: 20
+            LoadBalancerNames:
+                - !Ref MyClassicLoadBalancer
+            VPCZoneIdentifier:
+                - !Ref MyFirstPrivateSubnet
+                - !Ref MySecondPrivateSubnet
