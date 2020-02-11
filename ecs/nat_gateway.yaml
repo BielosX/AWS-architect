@@ -1,0 +1,38 @@
+Parameters:
+    VPCStack:
+        Type: String
+Resources:
+    MyEIP:
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: "vpc"
+    MyPrivateRoute:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${VPCStack}-VpcId"
+    MyNatGateway:
+        Type: AWS::EC2::NatGateway
+        Properties:
+            AllocationId: !GetAtt MyEIP.AllocationId
+            SubnetId:
+                Fn::ImportValue:
+                    !Sub "${VPCStack}-PublicSubnetId"
+    PrivateToNATGateway:
+        Type: AWS::EC2::Route
+        DependsOn:
+            - MyPrivateRoute
+            - MyNatGateway
+        Properties:
+            RouteTableId: !Ref MyPrivateRoute
+            DestinationCidrBlock: "0.0.0.0/0"
+            NatGatewayId: !Ref MyNatGateway
+    MyPrivSubnetRouteAssoc:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        DependsOn: MyPrivateRoute
+        Properties:
+            RouteTableId: !Ref MyPrivateRoute
+            SubnetId:
+                Fn::ImportValue:
+                    !Sub "${VPCStack}-PrivateSubnetId"

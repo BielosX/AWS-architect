@@ -1,0 +1,27 @@
+Parameters:
+    ClusterStack:
+        Type: String
+Resources:
+    MyTaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            ContainerDefinitions:
+                -
+                    Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/redis:latest"
+                    Name: "redis"
+                    Memory: 512
+                    PortMappings:
+                        -
+                            ContainerPort: 6379
+                            HostPort: 6379
+    MyService:
+        Type: AWS::ECS::Service
+        DependsOn: MyTaskDefinition
+        Properties:
+            Cluster:
+                Fn::ImportValue:
+                    !Sub "${ClusterStack}-ClusterId"
+            SchedulingStrategy: "REPLICA"
+            DesiredCount: 1
+            TaskDefinition: !Ref MyTaskDefinition
+            LaunchType: "EC2"
