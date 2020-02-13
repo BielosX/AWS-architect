@@ -38,6 +38,17 @@ Resources:
                             Service: "ec2.amazonaws.com"
                         Action:
                             - "sts:AssumeRole"
+            Policies:
+                -
+                    PolicyName: "CreateLogGroupPolicy"
+                    PolicyDocument:
+                        Version: "2012-10-17"
+                        Statement:
+                            -
+                                Effect: "Allow"
+                                Action:
+                                    - "logs:CreateLogGroup"
+                                Resource: "*"
             ManagedPolicyArns:
                 - "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 
@@ -67,7 +78,10 @@ Resources:
                     Fn::Base64:
                         !Sub |
                             #!/bin/bash -xe
-                            echo "ECS_CLUSTER=${MyCluster}" >> /etc/ecs/ecs.config
+                            cat <<EOT >> /etc/ecs/ecs.config
+                            ECS_CLUSTER=${MyCluster}
+                            ECS_AVAILABLE_LOGGING_DRIVERS='["json-file","awslogs"]'
+                            EOT
     MyAutoScalingGroup:
         Type: AWS::AutoScaling::AutoScalingGroup
         DependsOn: MyLaunchTemplate
