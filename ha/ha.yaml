@@ -248,3 +248,59 @@ Resources:
             VPCZoneIdentifier:
                 - !Ref MyFirstPrivateSubnet
                 - !Ref MySecondPrivateSubnet
+    MyHighCPUScalingPolicy:
+        Type: AWS::AutoScaling::ScalingPolicy
+        Properties:
+            AdjustmentType: "ChangeInCapacity"
+            AutoScalingGroupName: !Ref MyAutoScalingGroup
+            PolicyType: "SimpleScaling"
+            ScalingAdjustment: 1
+    MyLowCPUScalingPolicy:
+        Type: AWS::AutoScaling::ScalingPolicy
+        Properties:
+            AdjustmentType: "ChangeInCapacity"
+            AutoScalingGroupName: !Ref MyAutoScalingGroup
+            PolicyType: "SimpleScaling"
+            ScalingAdjustment: -1
+    MyHighCPUCloudWatchAlarm:
+        Type: AWS::CloudWatch::Alarm
+        DependsOn:
+            - MyHighCPUScalingPolicy
+            - MyAutoScalingGroup
+        Properties:
+            ActionsEnabled: true
+            AlarmActions:
+                - !Ref MyHighCPUScalingPolicy
+            ComparisonOperator: "GreaterThanThreshold"
+            MetricName: "CPUUtilization"
+            Namespace: "AWS/EC2"
+            Statistic: "Average"
+            Period: 60
+            EvaluationPeriods: 1
+            Threshold: 60
+            Unit: "Percent"
+            Dimensions:
+                -
+                    Name: "AutoScalingGroupName"
+                    Value: !Ref MyAutoScalingGroup
+    MyLowCPUCloudWatchAlarm:
+        Type: AWS::CloudWatch::Alarm
+        DependsOn:
+            - MyLowCPUScalingPolicy
+            - MyAutoScalingGroup
+        Properties:
+            ActionsEnabled: true
+            AlarmActions:
+                - !Ref MyLowCPUScalingPolicy
+            ComparisonOperator: "LessThanThreshold"
+            MetricName: "CPUUtilization"
+            Namespace: "AWS/EC2"
+            Statistic: "Average"
+            Period: 60
+            EvaluationPeriods: 2
+            Threshold: 40
+            Unit: "Percent"
+            Dimensions:
+                -
+                    Name: "AutoScalingGroupName"
+                    Value: !Ref MyAutoScalingGroup
