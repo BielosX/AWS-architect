@@ -1,15 +1,28 @@
 Parameters:
     ClusterStack:
         Type: String
+    RedisLogsGroup:
+        Type: String
+        Default: "my-redis-logs-group"
 Resources:
+    MyRedisLogGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: !Ref RedisLogsGroup
     MyTaskDefinition:
         Type: AWS::ECS::TaskDefinition
+        DependsOn: MyRedisLogGroup
         Properties:
             ContainerDefinitions:
                 -
                     Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/redis:latest"
                     Name: "redis"
                     Memory: 512
+                    LogConfiguration:
+                        LogDriver: "awslogs"
+                        Options:
+                            awslogs-group: !Ref RedisLogsGroup
+                            awslogs-region: "us-east-1"
                     PortMappings:
                         -
                             ContainerPort: 6379

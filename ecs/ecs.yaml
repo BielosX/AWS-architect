@@ -80,7 +80,6 @@ Resources:
                             #!/bin/bash -xe
                             cat <<EOT >> /etc/ecs/ecs.config
                             ECS_CLUSTER=${MyCluster}
-                            ECS_AVAILABLE_LOGGING_DRIVERS='["json-file","awslogs"]'
                             EOT
     MyAutoScalingGroup:
         Type: AWS::AutoScaling::AutoScalingGroup

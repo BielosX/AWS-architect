@@ -1,0 +1,70 @@
+Parameters:
+    VPCStack:
+        Type: String
+    ClusterStack:
+        Type: String
+Resources:
+    EndpointSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "Security group for CloudWatch Logs Endpoint"
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${VPCStack}-VpcId"
+            SecurityGroupIngress:
+                -
+                    SourceSecurityGroupId:
+                        Fn::ImportValue:
+                            !Sub "${ClusterStack}-SecurityGroupId"
+                    IpProtocol: "tcp"
+                    FromPort: 80
+                    ToPort: 80
+                -
+                    SourceSecurityGroupId:
+                        Fn::ImportValue:
+                            !Sub "${ClusterStack}-SecurityGroupId"
+                    IpProtocol: "tcp"
+                    FromPort: 443
+                    ToPort: 443
+            SecurityGroupEgress:
+                -
+                    DestinationSecurityGroupId:
+                        Fn::ImportValue:
+                            !Sub "${ClusterStack}-SecurityGroupId"
+                    IpProtocol: "tcp"
+                    FromPort: 80
+                    ToPort: 80
+                -
+                    DestinationSecurityGroupId:
+                        Fn::ImportValue:
+                            !Sub "${ClusterStack}-SecurityGroupId"
+                    IpProtocol: "tcp"
+                    FromPort: 443
+                    ToPort: 443
+    VPCCloudWatchLogsEndpoint:
+        Type: AWS::EC2::VPCEndpoint
+        DependsOn: EndpointSecurityGroup
+        Properties:
+            PolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Principal: "*"
+                        Action:
+                            - "logs:CreateLogGroup"
+                            - "logs:CreateLogStream"
+                            - "logs:PutLogEvents"
+                        Resource: "*"
+            VpcEndpointType: "Interface"
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${VPCStack}-VpcId"
+            ServiceName: !Sub "com.amazonaws.${AWS::Region}.logs"
+            SecurityGroupIds:
+                - !Ref EndpointSecurityGroup
+            SubnetIds:
+                -
+                    Fn::ImportValue:
+                        !Sub "${VPCStack}-PrivateSubnetId"
+
