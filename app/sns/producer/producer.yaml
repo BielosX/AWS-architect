@@ -1,0 +1,70 @@
+Parameters:
+    PublisherLogsGroup:
+        Type: String
+        Default: "publisher-logs-group"
+    ClusterStack:
+        Type: String
+Resources:
+    MyTopic:
+        Type: AWS::SNS::Topic
+        Properties:
+            TopicName: "my-test-topic"
+    MyPublisherLogGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: !Ref PublisherLogsGroup
+    MyTaskRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Principal:
+                            Service: "ecs-tasks.amazonaws.com"
+                        Action:
+                            - "sts:AssumeRole"
+            Policies:
+                -
+                    PolicyName: "PublishToSNS"
+                    PolicyDocument:
+                        Version: "2012-10-17"
+                        Statement:
+                            -
+                                Effect: "Allow"
+                                Action:
+                                    - "sns:Publish"
+                                Resource: "*"
+    MyTaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        DependsOn:
+            - MyPublisherLogGroup
+            - MyTaskRole
+        Properties:
+            TaskRoleArn: !GetAtt MyTaskRole.Arn
+            ContainerDefinitions:
+                -
+                    Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/producer:latest"
+                    Name: "publisher"
+                    Memory: 512
+                    Environment:
+                        -
+                            Name: "TOPIC_ARN"
+                            Value: !Ref MyTopic
+                    LogConfiguration:
+                        LogDriver: "awslogs"
+                        Options:
+                            awslogs-group: !Ref PublisherLogsGroup
+                            awslogs-region: "us-east-1"
+    MyService:
+        Type: AWS::ECS::Service
+        DependsOn: MyTaskDefinition
+        Properties:
+            Cluster:
+                Fn::ImportValue:
+                    !Sub "${ClusterStack}-ClusterId"
+            SchedulingStrategy: "REPLICA"
+            DesiredCount: 1
+            TaskDefinition: !Ref MyTaskDefinition
+            LaunchType: "EC2"

@@ -80,6 +80,9 @@ Resources:
                             #!/bin/bash -xe
                             cat <<EOT >> /etc/ecs/ecs.config
                             ECS_CLUSTER=${MyCluster}
+                            ECS_ENABLE_CONTAINER_METADATA=true
+                            ECS_ENABLE_TASK_IAM_ROLE=true
+                            ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true
                             EOT
     MyAutoScalingGroup:
         Type: AWS::AutoScaling::AutoScalingGroup
