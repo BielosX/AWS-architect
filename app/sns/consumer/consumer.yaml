@@ -1,0 +1,131 @@
+Parameters:
+    VpcStack:
+        Type: String
+    ConsumerLogsGroup:
+        Type: String
+        Default: "consumer-logs-group"
+    ClusterStack:
+        Type: String
+    PublisherStack:
+        Type: String
+Resources:
+    MyConsumerLogsGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: !Ref ConsumerLogsGroup
+    MyLoadBalancerSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "This is a ELB security group"
+            VpcId:
+                Fn::ImportValue:
+                    !Sub "${VpcStack}-VpcId"
+            SecurityGroupIngress:
+                -
+                    CidrIp: "0.0.0.0/0"
+                    IpProtocol: "tcp"
+                    FromPort: 80
+                    ToPort: 80
+            SecurityGroupEgress:
+                -
+                    DestinationSecurityGroupId:
+                        Fn::ImportValue:
+                            !Sub "${ClusterStack}-SecurityGroupId"
+                    IpProtocol: "tcp"
+                    FromPort: 8080
+                    ToPort: 8080
+    ServiceLoadBalancer:
+        Type: AWS::ElasticLoadBalancing::LoadBalancer
+        Properties:
+            Scheme: "internet-facing"
+            SecurityGroups:
+                - !Ref MyLoadBalancerSecurityGroup
+            Listeners:
+                -
+                    InstancePort: 8080
+                    InstanceProtocol: "HTTP"
+                    LoadBalancerPort: 80
+                    Protocol: "HTTP"
+            HealthCheck:
+                HealthyThreshold: 2
+                Interval: 20
+                Target: "HTTP:8080/health"
+                Timeout: 10
+                UnhealthyThreshold: 2
+            Subnets:
+                -
+                    Fn::ImportValue:
+                        !Sub "${VpcStack}-PublicSubnetId"
+    MyTaskRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Principal:
+                            Service: "ecs-tasks.amazonaws.com"
+                        Action:
+                            - "sts:AssumeRole"
+            Policies:
+                -
+                    PolicyName: "AllowSNS"
+                    PolicyDocument:
+                        Version: "2012-10-17"
+                        Statement:
+                            -
+                                Effect: "Allow"
+                                Action:
+                                    - "sns:ConfirmSubscription"
+                                    - "sns:Subscribe"
+                                Resource: "*"
+    MyTaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        DependsOn:
+            - MyConsumerLogsGroup
+            - ServiceLoadBalancer
+        Properties:
+            TaskRoleArn: !GetAtt MyTaskRole.Arn
+            ContainerDefinitions:
+                -
+                    Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/consumer:latest"
+                    Name: "consumer"
+                    Memory: 512
+                    Environment:
+                        -
+                            Name: "TOPIC_ARN"
+                            Value:
+                                Fn::ImportValue:
+                                    !Sub "${PublisherStack}-TopicArn"
+                        -
+                            Name: "LB_URL"
+                            Value: !Sub "http://${ServiceLoadBalancer.DNSName}"
+                    PortMappings:
+                        -
+                            ContainerPort: 8080
+                            HostPort: 8080
+                            Protocol: "tcp"
+                    LogConfiguration:
+                        LogDriver: "awslogs"
+                        Options:
+                            awslogs-group: !Ref MyConsumerLogsGroup
+                            awslogs-region: "us-east-1"
+    MyService:
+        Type: AWS::ECS::Service
+        DependsOn:
+            - MyTaskDefinition
+            - ServiceLoadBalancer
+        Properties:
+            Cluster:
+                Fn::ImportValue:
+                    !Sub "${ClusterStack}-ClusterId"
+            SchedulingStrategy: "REPLICA"
+            DesiredCount: 1
+            TaskDefinition: !Ref MyTaskDefinition
+            LaunchType: "EC2"
+            LoadBalancers:
+                -
+                    ContainerName: "consumer"
+                    ContainerPort: 8080
+                    LoadBalancerName: !Ref ServiceLoadBalancer

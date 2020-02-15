@@ -68,3 +68,8 @@ Resources:
             DesiredCount: 1
             TaskDefinition: !Ref MyTaskDefinition
             LaunchType: "EC2"
+Outputs:
+    MyTopicArn:
+        Value: !Ref MyTopic
+        Export:
+            Name: !Sub "${AWS::StackName}-TopicArn"

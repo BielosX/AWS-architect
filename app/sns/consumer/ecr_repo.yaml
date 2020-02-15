@@ -1,0 +1,5 @@
+Resources:
+    PublisherRepo:
+        Type: AWS::ECR::Repository
+        Properties:
+            RepositoryName: "consumer"
