@@ -1,0 +1,111 @@
+Parameters:
+    ProducerStack:
+        Type: String
+    ConsumerLogsGroup:
+        Type: String
+        Default: "consumer-logs-group"
+    ClusterStack:
+        Type: String
+Resources:
+    MyQueue:
+        Type: AWS::SQS::Queue
+        Properties:
+            QueueName: "MyQueue"
+            ReceiveMessageWaitTimeSeconds: 20
+            VisibilityTimeout: 300
+    MyQueuePolicy:
+        Type: AWS::SQS::QueuePolicy
+        DependsOn: MyQueue
+        Properties:
+            Queues:
+                - !Ref MyQueue
+            PolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Action:
+                            - "sqs:SendMessage"
+                        Resource:
+                            - !GetAtt MyQueue.Arn
+                        Principal: "*"
+                        # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html#Conditions_ARN
+                        Condition:
+                            ArnEquals:
+                                "aws:SourceArn":
+                                    Fn::ImportValue:
+                                        !Sub "${ProducerStack}-TopicArn"
+    MySubscription:
+        Type: AWS::SNS::Subscription
+        DependsOn:
+            - MyQueue
+            - MyQueuePolicy
+        Properties:
+            Endpoint: !GetAtt MyQueue.Arn
+            Protocol: "sqs"
+            TopicArn:
+                Fn::ImportValue:
+                    !Sub "${ProducerStack}-TopicArn"
+    MyConsumerLogsGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: !Ref ConsumerLogsGroup
+    MyTaskRole:
+        Type: AWS::IAM::Role
+        DependsOn: MyQueue
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Principal:
+                            Service: "ecs-tasks.amazonaws.com"
+                        Action:
+                            - "sts:AssumeRole"
+            Policies:
+                -
+                    PolicyName: "ConsumerPollSQS"
+                    PolicyDocument:
+                        Version: "2012-10-17"
+                        Statement:
+                            -
+                                Effect: "Allow"
+                                Action:
+                                    - "sqs:DeleteMessage"
+                                    - "sqs:ReceiveMessage"
+                                Resource: !GetAtt MyQueue.Arn
+    MyTaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        DependsOn:
+            - MyConsumerLogsGroup
+            - MyTaskRole
+            - MyQueue
+            - MyQueuePolicy
+        Properties:
+            TaskRoleArn: !GetAtt MyTaskRole.Arn
+            ContainerDefinitions:
+                -
+                    Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/consumer:latest"
+                    Name: "consumer"
+                    Memory: 512
+                    Environment:
+                        -
+                            Name: "QUEUE_URL"
+                            Value: !Ref MyQueue
+                    LogConfiguration:
+                        LogDriver: "awslogs"
+                        Options:
+                            awslogs-group: !Ref MyConsumerLogsGroup
+                            awslogs-region: "us-east-1"
+    MyService:
+        Type: AWS::ECS::Service
+        DependsOn: MyTaskDefinition
+        Properties:
+            Cluster:
+                Fn::ImportValue:
+                    !Sub "${ClusterStack}-ClusterId"
+            SchedulingStrategy: "REPLICA"
+            DesiredCount: 1
+            TaskDefinition: !Ref MyTaskDefinition
+            LaunchType: "EC2"
