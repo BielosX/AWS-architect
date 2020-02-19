@@ -1,6 +1,7 @@
 import com.google.gson.Gson;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.impl.SimpleLogger;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -38,7 +39,9 @@ public class Main {
                 ReceiveMessageRequest request = ReceiveMessageRequest.builder()
                         .queueUrl(queueUrl)
                         .build();
+                log.info("Checking for messages");
                 List<Message> messages = client.receiveMessage(request).messages();
+                log.info("Number of messages received: {}", messages.size());
                 messages.forEach(message -> {
                     log.info("Node {} received message: {}", containerId, message.body());
                     DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
