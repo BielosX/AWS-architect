@@ -1,0 +1,102 @@
+Parameters:
+    PublisherLogsGroup:
+        Type: String
+        Default: "publisher-logs-group"
+    ClusterStack:
+        Type: String
+Resources:
+    MyFifo:
+        Type: AWS::SQS::Queue
+        Properties:
+            FifoQueue: true
+            ContentBasedDeduplication: false
+            ReceiveMessageWaitTimeSeconds: 20
+            VisibilityTimeout: 300
+    MyPublisherLogGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: !Ref PublisherLogsGroup
+    MyTaskRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Principal:
+                            Service: "ecs-tasks.amazonaws.com"
+                        Action:
+                            - "sts:AssumeRole"
+            Policies:
+                -
+                    PolicyName: "SendMessageSQS"
+                    PolicyDocument:
+                        Version: "2012-10-17"
+                        Statement:
+                            -
+                                Effect: "Allow"
+                                Action:
+                                    - "sqs:SendMessage"
+                                Resource: "*"
+    MyFifoPolicy:
+        Type: AWS::SQS::QueuePolicy
+        DependsOn:
+            - MyFifo
+            - MyTaskRole
+        Properties:
+            Queues:
+                - !Ref MyFifo
+            PolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Action:
+                            - "sqs:SendMessage"
+                        Resource:
+                            - !GetAtt MyFifo.Arn
+                        Principal:
+                            AWS: "*"
+    MyTaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        DependsOn:
+            - MyPublisherLogGroup
+            - MyTaskRole
+            - MyFifo
+        Properties:
+            TaskRoleArn: !GetAtt MyTaskRole.Arn
+            ContainerDefinitions:
+                -
+                    Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/producer:latest"
+                    Name: "publisher"
+                    Memory: 512
+                    Environment:
+                        -
+                            Name: "QUEUE_URL"
+                            Value: !Ref MyFifo
+                    LogConfiguration:
+                        LogDriver: "awslogs"
+                        Options:
+                            awslogs-group: !Ref PublisherLogsGroup
+                            awslogs-region: "us-east-1"
+                    PortMappings:
+                        -
+                            ContainerPort: 8080
+                            HostPort: 8080
+    MyService:
+        Type: AWS::ECS::Service
+        DependsOn: MyTaskDefinition
+        Properties:
+            Cluster:
+                Fn::ImportValue:
+                    !Sub "${ClusterStack}-ClusterId"
+            SchedulingStrategy: "REPLICA"
+            DesiredCount: 1
+            TaskDefinition: !Ref MyTaskDefinition
+            LaunchType: "EC2"
+Outputs:
+    MyFifoUrl:
+        Value: !Ref MyFifo
+        Export:
+            Name: !Sub "${AWS::StackName}-QueueUrl"

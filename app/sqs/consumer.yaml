@@ -1,0 +1,94 @@
+Parameters:
+    ProducerStack:
+        Type: String
+    ConsumerLogsGroup:
+        Type: String
+        Default: "consumer-logs-group"
+    ClusterStack:
+        Type: String
+Resources:
+    MyConsumerLogsGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: !Ref ConsumerLogsGroup
+    MyTaskRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Principal:
+                            Service: "ecs-tasks.amazonaws.com"
+                        Action:
+                            - "sts:AssumeRole"
+            Policies:
+                -
+                    PolicyName: "RecvMessageSQS"
+                    PolicyDocument:
+                        Version: "2012-10-17"
+                        Statement:
+                            -
+                                Effect: "Allow"
+                                Action:
+                                    - "sqs:DeleteMessage"
+                                    - "sqs:ReceiveMessage"
+                                Resource: "*"
+    MyTaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        DependsOn:
+            - MyConsumerLogsGroup
+            - MyTaskRole
+        Properties:
+            TaskRoleArn: !GetAtt MyTaskRole.Arn
+            ContainerDefinitions:
+                -
+                    Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/consumer:latest"
+                    Name: "consumer"
+                    Memory: 512
+                    Environment:
+                        -
+                            Name: "QUEUE_URL"
+                            Value:
+                                Fn::ImportValue:
+                                    !Sub "${ProducerStack}-QueueUrl"
+                    LogConfiguration:
+                        LogDriver: "awslogs"
+                        Options:
+                            awslogs-group: !Ref MyConsumerLogsGroup
+                            awslogs-region: "us-east-1"
+    MyService:
+        Type: AWS::ECS::Service
+        DependsOn: MyTaskDefinition
+        Properties:
+            Cluster:
+                Fn::ImportValue:
+                    !Sub "${ClusterStack}-ClusterId"
+            SchedulingStrategy: "REPLICA"
+            DesiredCount: 1
+            TaskDefinition: !Ref MyTaskDefinition
+            LaunchType: "EC2"
+    MyScalableTarget:
+        Type: AWS::ApplicationAutoScaling::ScalableTarget
+        DependsOn:
+            - MyService
+        Properties:
+            RoleARN:
+                !Sub
+                - "arn:aws:iam:${AWS::Region}:${AWS::AccountId}:role/aws-service-role/${Url}/${Role}"
+                -
+                    Url: "ecs.application-autoscaling.amazonaws.com"
+                    Role: "AWSServiceRoleForApplicationAutoScaling_ECSService"
+            ResourceId:
+                !Sub
+                    - "service/${ClusterName}/${ServiceName}"
+                    -
+                        ServiceName: !GetAtt MyService.Name
+                        ClusterName:
+                            Fn::ImportValue:
+                                !Sub "${ClusterStack}-ClusterId"
+            ScalableDimension: "ecs:service:DesiredCount"
+            ServiceNamespace: "ecs"
+            MaxCapacity: 4
+            MinCapacity: 4
