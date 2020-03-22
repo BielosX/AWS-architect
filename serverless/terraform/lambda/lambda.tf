@@ -30,8 +30,8 @@ resource "aws_s3_bucket_object" "lambda_init_archive" {
 resource "aws_lambda_function" "my_lambda" {
   s3_bucket = "${aws_s3_bucket.lambda_bucket.id}"
   s3_key = "${aws_s3_bucket_object.lambda_init_archive.key}"
-  function_name = "main"
-  handler = "main"
+  function_name = "books_lambda"
+  handler = "main.main"
   role = var.role
   runtime = "python3.7"
 }
