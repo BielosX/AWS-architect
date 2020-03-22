@@ -1,9 +1,3 @@
-variable "region" {
-  type = string
-}
-
-variable "role" {}
-
 resource "aws_s3_bucket" "lambda_bucket" {
   bucket = "bielosx-lambda-bucket-${var.region}"
   acl = "private"

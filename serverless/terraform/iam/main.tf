@@ -1,7 +1,3 @@
-output "lambda_iam_role_arn" {
-  value = aws_iam_role.lambda_iam_role.arn
-}
-
 data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
     effect = "Allow"

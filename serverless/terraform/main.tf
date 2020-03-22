@@ -2,12 +2,12 @@ provider "aws" {
   region = "us-east-1"
 }
 
-module "lambda_role" {
-  source = "./lambda_role"
+module "iam" {
+  source = "./iam"
 }
 
 module "lambda" {
   source = "./lambda"
   region = "us-east-1"
-  role = module.lambda_role.lambda_iam_role_arn
+  role = module.iam.lambda_iam_role_arn
 }
