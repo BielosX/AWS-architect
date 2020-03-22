@@ -7,6 +7,7 @@ variable "role" {}
 resource "aws_s3_bucket" "lambda_bucket" {
   bucket = "bielosx-lambda-bucket-${var.region}"
   acl = "private"
+  force_destroy = true
 }
 
 data "archive_file" "lambda_init" {
