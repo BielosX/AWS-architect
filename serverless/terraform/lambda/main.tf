@@ -22,6 +22,11 @@ resource "aws_s3_bucket_object" "lambda_init_archive" {
   source = "${data.archive_file.lambda_init.output_path}"
 }
 
+resource "aws_security_group" "lambda_security_group" {
+  name = "lambda_security_group"
+  vpc_id = var.vpc_id
+}
+
 resource "aws_lambda_function" "my_lambda" {
   s3_bucket = "${aws_s3_bucket.lambda_bucket.id}"
   s3_key = "${aws_s3_bucket_object.lambda_init_archive.key}"
@@ -29,4 +34,8 @@ resource "aws_lambda_function" "my_lambda" {
   handler = "main.main"
   role = var.role
   runtime = "python3.7"
+  vpc_config {
+    subnet_ids = var.subnet_ids
+    security_group_ids = [aws_security_group.lambda_security_group.id]
+  }
 }
