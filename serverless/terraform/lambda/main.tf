@@ -34,6 +34,11 @@ resource "aws_lambda_function" "my_lambda" {
   handler = "main.main"
   role = var.role
   runtime = "python3.7"
+  environment {
+    variables = {
+      BUCKET_NAME = var.books_bucket_name
+    }
+  }
   vpc_config {
     subnet_ids = var.subnet_ids
     security_group_ids = [aws_security_group.lambda_security_group.id]
