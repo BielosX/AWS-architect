@@ -44,3 +44,10 @@ resource "aws_lambda_function" "my_lambda" {
     security_group_ids = [aws_security_group.lambda_security_group.id]
   }
 }
+
+resource "aws_lambda_permission" "lambda_permission" {
+  statement_id = "AllowExecutionFromApiGateway"
+  action = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.my_lambda.function_name
+  principal = "apigateway.amazonaws.com"
+}

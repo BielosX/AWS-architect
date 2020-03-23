@@ -31,3 +31,8 @@ module "lambda" {
     module.lambda_vpc.second_subnet_id
   ]
 }
+
+module "api_gateway" {
+  source = "./api"
+  lambda_invoke_arn = module.lambda.invoke_arn
+}
