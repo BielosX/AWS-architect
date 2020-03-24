@@ -3,13 +3,13 @@ import boto3
 import os
 import botocore
 
-import router
+from router import *
 
 def jsonWithCode(code, body):
     return {'statusCode': code, 'body': json.dumps(body)}
 
 def get_object(object_summary):
-    body = json.loads(object_summary.get()['Body'].read())
+    body = json.loads(object_summary.get()['Body'].read().decode('utf-8'))
     body['bookId'] = object_summary.key
     return body
 

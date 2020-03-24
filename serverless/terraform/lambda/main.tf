@@ -25,6 +25,20 @@ resource "aws_s3_bucket_object" "lambda_init_archive" {
 resource "aws_security_group" "lambda_security_group" {
   name = "lambda_security_group"
   vpc_id = var.vpc_id
+
+  ingress {
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_lambda_function" "my_lambda" {
@@ -34,6 +48,7 @@ resource "aws_lambda_function" "my_lambda" {
   handler = "main.main"
   role = var.role
   runtime = "python3.7"
+  timeout = 120
   environment {
     variables = {
       BUCKET_NAME = var.books_bucket_name
