@@ -1,6 +1,6 @@
 #! /bin/bash
 
-zip -r lambda.zip src --junk-paths
+zip -r lambda.zip src/*.py --junk-paths
 version=$2
 aws s3 cp lambda.zip "s3://${1}/${version}/lambda.zip"
 aws lambda update-function-code \
