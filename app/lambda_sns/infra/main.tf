@@ -4,10 +4,12 @@ provider "aws" {
 
 resource "aws_s3_bucket" "lambda_bucket" {
   bucket = var.bucket_name
+  force_destroy = true
 }
 
 resource "aws_s3_bucket" "lambda_output_bucket" {
   bucket = "lambda-output-bucket-${var.aws_region}"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_object" "initial_code" {
