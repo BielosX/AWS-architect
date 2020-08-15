@@ -88,47 +88,6 @@
                         </configuration>
                         <executions>
                             <execution>
-                                <id>init-s3-bucket</id>
-                                <phase>deploy</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <skip>${skipAwsInit}</skip>
-                                    <arguments>
-                                        <argument>cloudformation</argument>
-                                        <argument>create-stack</argument>
-                                        <argument>--stack-name</argument>
-                                        <argument>${deploymentBucket}-stack</argument>
-                                        <argument>--template-body</argument>
-                                        <argument>file://${project.basedir}/infra/bucket.yaml</argument>
-                                        <argument>--parameters</argument>
-                                        <argument>ParameterKey=BucketName,ParameterValue=${deploymentBucket}</argument>
-                                        <argument>--region</argument>
-                                        <argument>${deploymentRegion}</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>wait-for-s3-stack</id>
-                                <phase>deploy</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <skip>$skipAwsInit</skip>
-                                    <arguments>
-                                        <argument>cloudformation</argument>
-                                        <argument>wait</argument>
-                                        <argument>stack-create-complete</argument>
-                                        <argument>--region</argument>
-                                        <argument>${deploymentRegion}</argument>
-                                        <argument>--stack-name</argument>
-                                        <argument>${deploymentBucket}-stack</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
                                 <id>deploy-to-s3</id>
                                 <phase>deploy</phase>
                                 <goals>
@@ -142,53 +101,6 @@
                                         <argument>s3://${deploymentBucket}/${project.artifactId}-${project.version}.jar</argument>
                                         <argument>--region</argument>
                                         <argument>${deploymentRegion}</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>init-lambda-func</id>
-                                <phase>deploy</phase>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <configuration>
-                                    <skip>${skipAwsInit}</skip>
-                                    <arguments>
-                                        <argument>cloudformation</argument>
-                                        <argument>create-stack</argument>
-                                        <argument>--stack-name</argument>
-                                        <argument>${lambdaName}-${deploymentRegion}-stack</argument>
-                                        <argument>--template-body</argument>
-                                        <argument>file://${project.basedir}/infra/lambda.yaml</argument>
-                                        <argument>--capabilities</argument>
-                                        <argument>CAPABILITY_IAM</argument>
-                                        <argument>CAPABILITY_NAMED_IAM</argument>
-                                        <argument>--region</argument>
-                                        <argument>${deploymentRegion}</argument>
-                                        <argument>--parameters</argument>
-                                        <argument>ParameterKey=BucketName,ParameterValue=${deploymentBucket}</argument>
-                                        <argument>ParameterKey=FileName,ParameterValue=${project.artifactId}-${project.version}.jar</argument>
-                                        <argument>ParameterKey=LambdaName,ParameterValue=${lambdaName}</argument>
-                                        <argument>ParameterKey=HandlerFunc,ParameterValue=${handlerFunction}</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>wait-for-lambda-stack</id>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <phase>deploy</phase>
-                                <configuration>
-                                    <skip>${skipAwsInit}</skip>
-                                    <arguments>
-                                        <argument>cloudformation</argument>
-                                        <argument>wait</argument>
-                                        <argument>stack-create-complete</argument>
-                                        <argument>--region</argument>
-                                        <argument>${deploymentRegion}</argument>
-                                        <argument>--stack-name</argument>
-                                        <argument>${lambdaName}-${deploymentRegion}-stack</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -212,6 +124,97 @@
                                         <argument>--region</argument>
                                         <argument>${deploymentRegion}</argument>
                                     </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>terraform-apply</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>2.8.2</version>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.0.0</version>
+                        <executions>
+                            <execution>
+                                <id>run-terraform-apply</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>terraform</executable>
+                                    <environmentVariables>
+                                        <TF_VAR_aws_region>${deploymentRegion}</TF_VAR_aws_region>
+                                        <TF_VAR_jar_file_path>${project.build.directory}/${project.artifactId}-${project.version}.jar</TF_VAR_jar_file_path>
+                                        <TF_VAR_jar_file_name>${project.artifactId}-${project.version}.jar</TF_VAR_jar_file_name>
+                                        <TF_VAR_bucket_name>${deploymentBucket}</TF_VAR_bucket_name>
+                                        <TF_VAR_lambda_name>${lambdaName}</TF_VAR_lambda_name>
+                                        <TF_VAR_lambda_handler>${handlerFunction}</TF_VAR_lambda_handler>
+                                    </environmentVariables>
+                                    <arguments>
+                                        <argument>apply</argument>
+                                        <argument>-auto-approve</argument>
+                                    </arguments>
+                                    <workingDirectory>${project.basedir}/infra</workingDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>terraform-destroy</id>
+            <build>
+                <plugins>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>2.8.2</version>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.0.0</version>
+                        <executions>
+                            <execution>
+                                <id>run-terraform-destroy</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>terraform</executable>
+                                    <environmentVariables>
+                                        <TF_VAR_aws_region>${deploymentRegion}</TF_VAR_aws_region>
+                                        <TF_VAR_jar_file_path>${project.build.directory}/${project.artifactId}-${project.version}.jar</TF_VAR_jar_file_path>
+                                        <TF_VAR_jar_file_name>${project.artifactId}-${project.version}.jar</TF_VAR_jar_file_name>
+                                        <TF_VAR_bucket_name>${deploymentBucket}</TF_VAR_bucket_name>
+                                        <TF_VAR_lambda_name>${lambdaName}</TF_VAR_lambda_name>
+                                        <TF_VAR_lambda_handler>${handlerFunction}</TF_VAR_lambda_handler>
+                                    </environmentVariables>
+                                    <arguments>
+                                        <argument>destroy</argument>
+                                        <argument>-auto-approve</argument>
+                                    </arguments>
+                                    <workingDirectory>${project.basedir}/infra</workingDirectory>
                                 </configuration>
                             </execution>
                         </executions>

@@ -1,8 +1,0 @@
-Parameters:
-  BucketName:
-    Type: String
-Resources:
-  LambdaDeployBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref BucketName
