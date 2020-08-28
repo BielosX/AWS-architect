@@ -32,6 +32,10 @@ resource "aws_security_group" "cluster_security_group" {
   }
 }
 
+data "aws_ssm_parameter" "recommended_ami" {
+  name = "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
+}
+
 resource "aws_launch_template" "cluster_ec2_launch_template" {
   depends_on = [aws_ecs_cluster.cluster]
   tags = {
@@ -47,7 +51,7 @@ resource "aws_launch_template" "cluster_ec2_launch_template" {
           EOF
   )
   instance_type = "t2.micro"
-  image_id = "ami-01f62a207c1d180d2"
+  image_id = data.aws_ssm_parameter.recommended_ami.value
   vpc_security_group_ids = [aws_security_group.cluster_security_group.id]
   key_name = var.key_pair
 }
