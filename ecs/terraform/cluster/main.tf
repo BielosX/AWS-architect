@@ -11,12 +11,14 @@ resource "aws_security_group" "cluster_security_group" {
   ingress {
     from_port = 0
     protocol = "-1"
-    to_port = 65535
+    to_port = 0
+    cidr_blocks = ["0.0.0.0/0"]
   }
   egress {
     from_port = 0
     protocol = "-1"
-    to_port = 65535
+    to_port = 0
+    cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
     Name = var.deployment_tag
@@ -64,6 +66,8 @@ resource "aws_iam_instance_profile" "ec2_cluster_profile" {
   role = aws_iam_role.ec2_cluster_role.name
 }
 
+data "aws_region" "current" {}
+
 resource "aws_launch_template" "cluster_ec2_launch_template" {
   depends_on = [aws_ecs_cluster.cluster]
   tags = {
@@ -76,6 +80,7 @@ resource "aws_launch_template" "cluster_ec2_launch_template" {
             echo "ECS_ENABLE_CONTAINER_METADATA=true" >> /etc/ecs/ecs.config
             echo "ECS_ENABLE_TASK_IAM_ROLE=true" >> /etc/ecs/ecs.config
             echo "ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true" >> /etc/ecs/ecs.config
+            echo "AWS_DEFAULT_REGION=${data.aws_region.current.name}" >> /etc/ecs/ecs.config
           EOF
   )
   instance_type = "t2.micro"
