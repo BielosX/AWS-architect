@@ -8,25 +8,16 @@ resource "aws_ecs_cluster" "cluster" {
 resource "aws_security_group" "cluster_security_group" {
   vpc_id = var.vpc_id
 
-  dynamic "ingress" {
-    for_each = ["tcp", "udp"]
-    content {
-      from_port = 0
-      to_port = 65535
-      cidr_blocks = ["0.0.0.0/0"]
-      protocol = ingress.value
-    }
+  ingress {
+    from_port = 0
+    protocol = "-1"
+    to_port = 65535
   }
-  dynamic "egress" {
-    for_each = ["tcp", "udp"]
-    content {
-      from_port = 0
-      to_port = 65535
-      cidr_blocks = ["0.0.0.0/0"]
-      protocol = egress.value
-    }
+  egress {
+    from_port = 0
+    protocol = "-1"
+    to_port = 65535
   }
-
   tags = {
     Name = var.deployment_tag
   }
