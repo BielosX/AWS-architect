@@ -33,11 +33,24 @@
             <version>3.1.2</version>
             <type>maven-plugin</type>
         </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <version>3.0.0-M1</version>
+            <type>maven-plugin</type>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-core</artifactId>
+            <version>1.11.707</version>
+        </dependency>
     </dependencies>
 
     <properties>
         <mainClass>Main</mainClass>
         <imageName>${project.artifactId}</imageName>
+        <awsRegion>eu-west-1</awsRegion>
+        <awsAccountId>1234</awsAccountId>
     </properties>
 
     <build>
@@ -129,13 +142,65 @@
 
     <profiles>
         <profile>
-            <id>build-docker-image</id>
+            <id>docker-image</id>
+            <properties>
+                <docker.push.registry>${awsAccountId}.dkr.ecr.${awsRegion}.amazonaws.com</docker.push.registry>
+            </properties>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>3.0.0-M1</version>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
                     <plugin>
                         <groupId>io.fabric8</groupId>
                         <artifactId>docker-maven-plugin</artifactId>
                         <version>0.33.0</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>com.amazonaws</groupId>
+                                <artifactId>aws-java-sdk-core</artifactId>
+                                <version>1.11.707</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <name>${project.artifactId}</name>
+                                    <build>
+                                        <from>openjdk:11-jdk-slim</from>
+                                        <tags>
+                                            <tag>latest</tag>
+                                            <tag>${project.version}</tag>
+                                        </tags>
+                                        <ports>
+                                            <port>4567</port>
+                                        </ports>
+                                        <assembly>
+                                            <targetDir>/app</targetDir>
+                                            <inline>
+                                                <files>
+                                                    <file>
+                                                        <source>${project.build.directory}/${project.artifactId}-${project.version}.jar</source>
+                                                    </file>
+                                                </files>
+                                            </inline>
+                                        </assembly>
+                                        <entryPoint>
+                                            <exec>
+                                                <arg>java</arg>
+                                                <arg>-jar</arg>
+                                                <arg>/app/${project.artifactId}-${project.version}.jar</arg>
+                                            </exec>
+                                        </entryPoint>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>build-image</id>
@@ -143,40 +208,13 @@
                                     <goal>build</goal>
                                 </goals>
                                 <phase>package</phase>
-                                <configuration>
-                                    <images>
-                                        <image>
-                                            <name>${project.artifactId}</name>
-                                            <build>
-                                                <from>openjdk:11-jdk-slim</from>
-                                                <tags>
-                                                    <tag>latest</tag>
-                                                    <tag>${project.version}</tag>
-                                                </tags>
-                                                <ports>
-                                                    <port>4567</port>
-                                                </ports>
-                                                <assembly>
-                                                    <targetDir>/app</targetDir>
-                                                    <inline>
-                                                        <files>
-                                                            <file>
-                                                                <source>${project.build.directory}/${project.artifactId}-${project.version}.jar</source>
-                                                            </file>
-                                                        </files>
-                                                    </inline>
-                                                </assembly>
-                                                <entryPoint>
-                                                    <exec>
-                                                        <arg>java</arg>
-                                                        <arg>-jar</arg>
-                                                        <arg>/app/${project.artifactId}-${project.version}.jar</arg>
-                                                    </exec>
-                                                </entryPoint>
-                                            </build>
-                                        </image>
-                                    </images>
-                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>push-ecr</id>
+                                <goals>
+                                    <goal>push</goal>
+                                </goals>
+                                <phase>deploy</phase>
                             </execution>
                         </executions>
                     </plugin>
