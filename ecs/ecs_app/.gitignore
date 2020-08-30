@@ -1,3 +1,4 @@
 .idea
 target
 ecs_app.iml
+dependency-reduced-pom.xml

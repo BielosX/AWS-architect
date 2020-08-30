@@ -8,6 +8,38 @@
     <artifactId>ecs_app</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.2.4</version>
+            <type>maven-plugin</type>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <version>0.33.0</version>
+            <type>maven-plugin</type>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>3.2.0</version>
+            <type>maven-plugin</type>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>3.1.2</version>
+            <type>maven-plugin</type>
+        </dependency>
+    </dependencies>
+
+    <properties>
+        <mainClass>Main</mainClass>
+        <imageName>${project.artifactId}</imageName>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -18,7 +50,139 @@
                     <release>11</release>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${mainClass}</mainClass>
+                            <addClasspath>true</addClasspath>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.4</version>
+                <configuration>
+                    <finalName>${project.artifactId}-${project.version}</finalName>
+                    <artifactSet>
+                        <excludes>
+                            <exclude>org.apache.maven:*</exclude>
+                            <exclude>org.apache.maven.plugins:*</exclude>
+                            <exclude>org.apache.maven.shared:*</exclude>
+                            <exclude>com.google.guava:*</exclude>
+                            <exclude>org.sonatype.aether:*</exclude>
+                            <exclude>org.sonatype.sisu:*</exclude>
+                            <exclude>org.sonatype.plexus:*</exclude>
+                            <exclude>org.codehaus.plexus:*</exclude>
+                            <exclude>org.codehaus.classworlds:*</exclude>
+                            <exclude>commons-codec:*</exclude>
+                            <exclude>org.ow2.asm:*</exclude>
+                            <exclude>org.eclipse.aether:*</exclude>
+                            <exclude>io.fabric8:docker-maven-plugin:*</exclude>
+                        </excludes>
+                    </artifactSet>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>create-fat-jar</id>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.33.0</version>
+                <executions>
+                    <execution>
+                        <id>clean-images</id>
+                        <goals>
+                            <goal>remove</goal>
+                        </goals>
+                        <phase>clean</phase>
+                        <configuration>
+                            <removeNamePattern>**${imageName}:*</removeNamePattern>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>build-docker-image</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.33.0</version>
+                        <executions>
+                            <execution>
+                                <id>build-image</id>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <images>
+                                        <image>
+                                            <name>${project.artifactId}</name>
+                                            <build>
+                                                <from>openjdk:11-jdk-slim</from>
+                                                <tags>
+                                                    <tag>latest</tag>
+                                                    <tag>${project.version}</tag>
+                                                </tags>
+                                                <ports>
+                                                    <port>4567</port>
+                                                </ports>
+                                                <assembly>
+                                                    <targetDir>/app</targetDir>
+                                                    <inline>
+                                                        <files>
+                                                            <file>
+                                                                <source>${project.build.directory}/${project.artifactId}-${project.version}.jar</source>
+                                                            </file>
+                                                        </files>
+                                                    </inline>
+                                                </assembly>
+                                                <entryPoint>
+                                                    <exec>
+                                                        <arg>java</arg>
+                                                        <arg>-jar</arg>
+                                                        <arg>/app/${project.artifactId}-${project.version}.jar</arg>
+                                                    </exec>
+                                                </entryPoint>
+                                            </build>
+                                        </image>
+                                    </images>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
