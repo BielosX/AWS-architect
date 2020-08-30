@@ -21,6 +21,10 @@ locals {
     "com.amazonaws.${local.region_name}.ecs-telemetry",
     "com.amazonaws.${local.region_name}.ecs"
   ]
+  ecr_endpoints = [
+    "com.amazonaws.${local.region_name}.ecr.dkr",
+    "com.amazonaws.${local.region_name}.ecr.api"
+  ]
 }
 
 resource "aws_subnet" "private_subnets" {
@@ -95,6 +99,72 @@ resource "aws_security_group" "vpc_interface_security_group" {
 
 resource "aws_vpc_endpoint" "ecs_endpoints" {
   for_each = toset(local.ecs_endpoints)
+
+  service_name = each.value
+  vpc_id = aws_vpc.cluster_vpc.id
+  vpc_endpoint_type = "Interface"
+  tags = {
+    Name = var.deployment_tag
+  }
+  security_group_ids = [aws_security_group.vpc_interface_security_group.id]
+  subnet_ids = values(aws_subnet.private_subnets)[*].id
+  private_dns_enabled = true
+}
+
+resource "aws_security_group" "vpc_log_interface_security_group" {
+  vpc_id = aws_vpc.cluster_vpc.id
+  tags = {
+    Name = var.deployment_tag
+  }
+  dynamic "ingress" {
+    for_each = toset([80, 443])
+    content {
+      from_port = ingress.value
+      to_port = ingress.value
+      protocol = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+  dynamic "egress" {
+    for_each = toset([80, 443])
+    content {
+      from_port = egress.value
+      to_port = egress.value
+      protocol = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "log_interface_policy" {
+  statement {
+    effect = "Allow"
+    principals {
+      identifiers = ["*"]
+      type = "*"
+    }
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+  }
+}
+
+resource "aws_vpc_endpoint" "log_interface" {
+  service_name = "com.amazonaws.${data.aws_region.current.name}.logs"
+  vpc_id = aws_vpc.cluster_vpc.id
+  vpc_endpoint_type = "Interface"
+  security_group_ids = [aws_security_group.vpc_log_interface_security_group.id]
+  subnet_ids = values(aws_subnet.private_subnets)[*].id
+  tags = {
+    Name = var.deployment_tag
+  }
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "ecr_endpoints" {
+  for_each = toset(local.ecr_endpoints)
 
   service_name = each.value
   vpc_id = aws_vpc.cluster_vpc.id

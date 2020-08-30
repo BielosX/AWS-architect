@@ -81,6 +81,7 @@ resource "aws_launch_template" "cluster_ec2_launch_template" {
             echo "ECS_ENABLE_TASK_IAM_ROLE=true" >> /etc/ecs/ecs.config
             echo "ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true" >> /etc/ecs/ecs.config
             echo "AWS_DEFAULT_REGION=${data.aws_region.current.name}" >> /etc/ecs/ecs.config
+            echo '["json-file","syslog","awslogs","none"]' >> /etc/ecs/ecs.config
           EOF
   )
   instance_type = "t2.micro"

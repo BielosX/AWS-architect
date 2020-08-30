@@ -2,3 +2,6 @@
 target
 ecs_app.iml
 dependency-reduced-pom.xml
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/.terraform
