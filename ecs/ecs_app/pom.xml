@@ -394,7 +394,7 @@
                                     <goal>baseline</goal>
                                     <goal>migrate</goal>
                                 </goals>
-                                <phase>pre-integration-test</phase>
+                                <phase>initialize</phase>
                                 <configuration>
                                     <driver>org.postgresql.Driver</driver>
                                     <url>jdbc:postgresql://localhost:5432/appdb</url>
