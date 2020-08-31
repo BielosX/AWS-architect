@@ -4,11 +4,20 @@ services:
     image: "ecs_app:latest"
     ports:
       - "4567:4567"
-  postgresql:
+    networks:
+      - the_network
+    container_name: "ecs_app"
+  db:
     ports:
       - "5432:5432"
     image: "postgres:13-alpine"
+    networks:
+      - the_network
     environment:
       - POSTGRES_DB=appdb
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
+    container_name: "db"
+networks:
+  the_network:
+    driver: bridge

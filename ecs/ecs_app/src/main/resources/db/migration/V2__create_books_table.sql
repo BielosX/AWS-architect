@@ -1,5 +1,5 @@
-CREATE TABLE books (
-    id SERIAL PRIMARY KEY,
-    first_name VARCHAR(255),
-    last_name VARCHAR(255)
+CREATE TABLE "BOOKS" (
+    "ID" SERIAL PRIMARY KEY,
+    "FIRST_NAME" VARCHAR(255),
+    "LAST_NAME" VARCHAR(255)
 );
