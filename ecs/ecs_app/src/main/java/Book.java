@@ -1,8 +1,10 @@
 import lombok.Value;
 
+import java.util.UUID;
+
 @Value
 public class Book {
-    int id;
+    UUID id;
     String firstName;
     String lastName;
 }
