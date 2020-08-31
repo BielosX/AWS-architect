@@ -283,7 +283,7 @@
                                         <argument>--database.0</argument>
                                         <argument>mem:jooq;sql.syntax_pgs=true</argument>
                                         <argument>--dbname.0</argument>
-                                        <argument>PUBLIC</argument>
+                                        <argument>appdb</argument>
                                         <argument>--port</argument>
                                         <argument>9001</argument>
                                     </arguments>
@@ -308,10 +308,10 @@
                                 <phase>generate-sources</phase>
                                 <configuration>
                                     <driver>org.hsqldb.jdbcDriver</driver>
-                                    <url>jdbc:hsqldb:hsql://localhost:9001/public</url>
+                                    <url>jdbc:hsqldb:hsql://localhost:9001/appdb</url>
                                     <connectRetries>10</connectRetries>
                                     <schemas>
-                                        <schema>public</schema>
+                                        <schema>appdb</schema>
                                     </schemas>
                                     <user>SA</user>
                                 </configuration>
@@ -332,14 +332,14 @@
                                 <configuration>
                                     <jdbc>
                                         <user>SA</user>
-                                        <url>jdbc:hsqldb:hsql://localhost:9001/public</url>
+                                        <url>jdbc:hsqldb:hsql://localhost:9001/appdb</url>
                                         <driver>org.hsqldb.jdbcDriver</driver>
                                     </jdbc>
                                     <generator>
                                         <database>
                                             <name>org.jooq.meta.hsqldb.HSQLDBDatabase</name>
                                             <includes>.*</includes>
-                                            <inputSchema>public</inputSchema>
+                                            <inputSchema>appdb</inputSchema>
                                         </database>
                                         <target>
                                             <packageName>org.jooq.codegen.ecs.app</packageName>
