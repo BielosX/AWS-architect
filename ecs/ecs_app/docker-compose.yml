@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  ecs_app:
+    image: "ecs_app:latest"
+    ports:
+      - "4567:4567"
+  postgresql:
+    ports:
+      - "5432:5432"
+    image: "postgres:13-alpine"
+    environment:
+      - POSTGRES_DB=appdb
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
