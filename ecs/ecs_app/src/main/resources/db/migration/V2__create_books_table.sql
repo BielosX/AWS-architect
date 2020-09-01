@@ -1,5 +1,5 @@
-CREATE TABLE "BOOKS" (
-    "ID" UUID PRIMARY KEY,
-    "FIRST_NAME" VARCHAR(255),
-    "LAST_NAME" VARCHAR(255)
+CREATE TABLE books (
+    id UUID PRIMARY KEY,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255)
 );
