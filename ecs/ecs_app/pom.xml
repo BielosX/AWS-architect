@@ -45,11 +45,6 @@
             <version>1.11.707</version>
         </dependency>
         <dependency>
-            <groupId>org.hsqldb</groupId>
-            <artifactId>hsqldb</artifactId>
-            <version>2.5.1</version>
-        </dependency>
-        <dependency>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
             <version>3.0.0</version>
@@ -295,37 +290,6 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.0.0</version>
-                        <executions>
-                            <execution>
-                                <id>run-hsqldb</id>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <phase>generate-sources</phase>
-                                <configuration>
-                                    <executable>java</executable>
-                                    <arguments>
-                                        <argument>-cp</argument>
-                                        <argument>${org.hsqldb:hsqldb:jar}</argument>
-                                        <argument>org.hsqldb.server.Server</argument>
-                                        <argument>--database.0</argument>
-                                        <argument>mem:jooq;sql.syntax_pgs=true</argument>
-                                        <argument>--dbname.0</argument>
-                                        <argument>appdb</argument>
-                                        <argument>--port</argument>
-                                        <argument>9001</argument>
-                                    </arguments>
-                                    <async>true</async>
-                                    <asyncDestroyOnShutdown>true</asyncDestroyOnShutdown>
-                                    <quietLogs>true</quietLogs>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
                         <groupId>org.flywaydb</groupId>
                         <artifactId>flyway-maven-plugin</artifactId>
                         <version>6.5.5</version>
@@ -338,13 +302,14 @@
                                 </goals>
                                 <phase>generate-sources</phase>
                                 <configuration>
-                                    <driver>org.hsqldb.jdbcDriver</driver>
-                                    <url>jdbc:hsqldb:hsql://localhost:9001/appdb</url>
+                                    <driver>org.postgresql.Driver</driver>
+                                    <url>jdbc:postgresql:appdb</url>
                                     <connectRetries>10</connectRetries>
                                     <schemas>
-                                        <schema>FIRST</schema>
+                                        <schema>first</schema>
                                     </schemas>
-                                    <user>SA</user>
+                                    <user>root</user>
+                                    <password>root</password>
                                 </configuration>
                             </execution>
                         </executions>
@@ -362,15 +327,16 @@
                                 <phase>generate-sources</phase>
                                 <configuration>
                                     <jdbc>
-                                        <user>SA</user>
-                                        <url>jdbc:hsqldb:hsql://localhost:9001/appdb</url>
-                                        <driver>org.hsqldb.jdbcDriver</driver>
+                                        <user>root</user>
+                                        <password>root</password>
+                                        <url>jdbc:postgresql:appdb</url>
+                                        <driver>org.postgresql.Driver</driver>
                                     </jdbc>
                                     <generator>
                                         <database>
-                                            <name>org.jooq.meta.hsqldb.HSQLDBDatabase</name>
+                                            <name>org.jooq.meta.postgres.PostgresDatabase</name>
                                             <includes>.*</includes>
-                                            <inputSchema>FIRST</inputSchema>
+                                            <inputSchema>first</inputSchema>
                                         </database>
                                         <target>
                                             <packageName>org.jooq.codegen.ecs.app</packageName>
@@ -378,6 +344,54 @@
                                         </target>
                                     </generator>
                                 </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.33.0</version>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <name>postgres:13-alpine</name>
+                                    <run>
+                                        <env>
+                                            <POSTGRES_DB>appdb</POSTGRES_DB>
+                                            <POSTGRES_USER>root</POSTGRES_USER>
+                                            <POSTGRES_PASSWORD>root</POSTGRES_PASSWORD>
+                                        </env>
+                                        <ports>
+                                            <port>5432:5432</port>
+                                        </ports>
+                                        <wait>
+                                            <tcp>
+                                                <ports>
+                                                    <port>5432</port>
+                                                </ports>
+                                            </tcp>
+                                        </wait>
+                                        <tmpfs>
+                                            <mount>/var/lib/postgresql/data</mount>
+                                        </tmpfs>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>start-psql</id>
+                                <goals>
+                                    <goal>start</goal>
+                                </goals>
+                                <phase>initialize</phase>
+                            </execution>
+                            <execution>
+                                <id>stop-psql</id>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                                <phase>generate-sources</phase>
                             </execution>
                         </executions>
                     </plugin>
@@ -405,7 +419,7 @@
                                     <url>jdbc:postgresql://localhost:5432/appdb</url>
                                     <connectRetries>10</connectRetries>
                                     <schemas>
-                                        <schema>FIRST</schema>
+                                        <schema>first</schema>
                                     </schemas>
                                     <user>root</user>
                                     <password>root</password>
