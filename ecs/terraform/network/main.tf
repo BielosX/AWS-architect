@@ -12,44 +12,40 @@ data "aws_availability_zones" "available_zones" {
 }
 
 locals {
-  subnets_cidr = ["10.0.1.0/24", "10.0.2.0/24"]
+  private_subnets_cidr = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnet_cidr = "10.0.3.0/24"
   zone_names = data.aws_availability_zones.available_zones.names
   number_of_zones = length(local.zone_names)
-  region_name = data.aws_region.current.name
-  ecs_endpoints = [
-    "com.amazonaws.${local.region_name}.ecs-agent",
-    "com.amazonaws.${local.region_name}.ecs-telemetry",
-    "com.amazonaws.${local.region_name}.ecs"
-  ]
-  ecr_endpoints = [
-    "com.amazonaws.${local.region_name}.ecr.dkr",
-    "com.amazonaws.${local.region_name}.ecr.api"
-  ]
 }
 
 resource "aws_subnet" "private_subnets" {
-  for_each = toset(local.subnets_cidr)
+  for_each = toset(local.private_subnets_cidr)
   vpc_id = aws_vpc.cluster_vpc.id
   tags = {
     Name = var.deployment_tag
   }
   cidr_block = each.value
   map_public_ip_on_launch = false
-  availability_zone = local.zone_names[index(local.subnets_cidr, each.value) % local.number_of_zones]
+  availability_zone = local.zone_names[index(local.private_subnets_cidr, each.value) % local.number_of_zones]
 }
 
-data "aws_region" "current" {}
-
-data "aws_iam_policy_document" "ecr_s3_permission" {
-  statement {
-    actions = ["s3:GetObject"]
-    effect = "Allow"
-    resources = ["arn:aws:s3:::prod-${local.region_name}-starport-layer-bucket/*"]
-    principals {
-      identifiers = ["*"]
-      type = "*"
-    }
+resource "aws_subnet" "public_subnet" {
+  vpc_id = aws_vpc.cluster_vpc.id
+  tags = {
+    Name = var.deployment_tag
   }
+  cidr_block = local.public_subnet_cidr
+  map_public_ip_on_launch = true
+  availability_zone = data.aws_availability_zones.available_zones.names[0]
+}
+
+resource "aws_eip" "elastic_ip" {
+  vpc = true
+}
+
+resource "aws_nat_gateway" "nat_gateway" {
+  allocation_id = aws_eip.elastic_ip.id
+  subnet_id = aws_subnet.public_subnet.id
 }
 
 resource "aws_route_table" "private_subnets_route_table" {
@@ -60,119 +56,38 @@ resource "aws_route_table" "private_subnets_route_table" {
   }
 }
 
-resource "aws_route_table_association" "assign_private_subnets" {
-  count = length(local.subnets_cidr)
+resource "aws_route" "to_nat_gateway_route" {
+  destination_cidr_block = "0.0.0.0/0"
   route_table_id = aws_route_table.private_subnets_route_table.id
-  subnet_id = aws_subnet.private_subnets[element(local.subnets_cidr, count.index)].id
+  nat_gateway_id = aws_nat_gateway.nat_gateway.id
 }
 
-resource "aws_vpc_endpoint" "s3_endpoint" {
-  service_name = "com.amazonaws.${data.aws_region.current.name}.s3"
+resource "aws_route_table_association" "assign_private_subnets" {
+  count = length(local.private_subnets_cidr)
+  route_table_id = aws_route_table.private_subnets_route_table.id
+  subnet_id = values(aws_subnet.private_subnets)[count.index].id
+}
+
+resource "aws_internet_gateway" "internet_gateway" {
   vpc_id = aws_vpc.cluster_vpc.id
-  vpc_endpoint_type = "Gateway"
-  policy = data.aws_iam_policy_document.ecr_s3_permission.json
-  route_table_ids = [aws_route_table.private_subnets_route_table.id]
+}
+
+resource "aws_route_table" "public_subnets_route_table" {
+  vpc_id = aws_vpc.cluster_vpc.id
 
   tags = {
     Name = var.deployment_tag
   }
 }
 
-resource "aws_security_group" "vpc_interface_security_group" {
-  vpc_id = aws_vpc.cluster_vpc.id
-  tags = {
-    Name = var.deployment_tag
-  }
-  ingress {
-    from_port = 443
-    protocol = "tcp"
-    to_port = 443
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  egress {
-    from_port = 443
-    protocol = "tcp"
-    to_port = 443
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+resource "aws_route_table_association" "assign_public_subnets" {
+  route_table_id = aws_route_table.public_subnets_route_table.id
+  subnet_id = aws_subnet.public_subnet.id
 }
 
-resource "aws_vpc_endpoint" "ecs_endpoints" {
-  for_each = toset(local.ecs_endpoints)
-
-  service_name = each.value
-  vpc_id = aws_vpc.cluster_vpc.id
-  vpc_endpoint_type = "Interface"
-  tags = {
-    Name = var.deployment_tag
-  }
-  security_group_ids = [aws_security_group.vpc_interface_security_group.id]
-  subnet_ids = values(aws_subnet.private_subnets)[*].id
-  private_dns_enabled = true
+resource "aws_route" "to_igw" {
+  destination_cidr_block = "0.0.0.0/0"
+  route_table_id = aws_route_table.public_subnets_route_table.id
+  gateway_id = aws_internet_gateway.internet_gateway.id
 }
 
-resource "aws_security_group" "vpc_log_interface_security_group" {
-  vpc_id = aws_vpc.cluster_vpc.id
-  tags = {
-    Name = var.deployment_tag
-  }
-  dynamic "ingress" {
-    for_each = toset([80, 443])
-    content {
-      from_port = ingress.value
-      to_port = ingress.value
-      protocol = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
-  dynamic "egress" {
-    for_each = toset([80, 443])
-    content {
-      from_port = egress.value
-      to_port = egress.value
-      protocol = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
-}
-
-data "aws_iam_policy_document" "log_interface_policy" {
-  statement {
-    effect = "Allow"
-    principals {
-      identifiers = ["*"]
-      type = "*"
-    }
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
-  }
-}
-
-resource "aws_vpc_endpoint" "log_interface" {
-  service_name = "com.amazonaws.${data.aws_region.current.name}.logs"
-  vpc_id = aws_vpc.cluster_vpc.id
-  vpc_endpoint_type = "Interface"
-  security_group_ids = [aws_security_group.vpc_log_interface_security_group.id]
-  subnet_ids = values(aws_subnet.private_subnets)[*].id
-  tags = {
-    Name = var.deployment_tag
-  }
-  private_dns_enabled = true
-}
-
-resource "aws_vpc_endpoint" "ecr_endpoints" {
-  for_each = toset(local.ecr_endpoints)
-
-  service_name = each.value
-  vpc_id = aws_vpc.cluster_vpc.id
-  vpc_endpoint_type = "Interface"
-  tags = {
-    Name = var.deployment_tag
-  }
-  security_group_ids = [aws_security_group.vpc_interface_security_group.id]
-  subnet_ids = values(aws_subnet.private_subnets)[*].id
-  private_dns_enabled = true
-}
