@@ -13,6 +13,57 @@ locals {
   container_name = "ecs_app"
 }
 
+data "aws_iam_policy_document" "ecs_assume" {
+  statement {
+    effect = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      identifiers = ["ecs-tasks.amazonaws.com"]
+      type = "Service"
+    }
+  }
+}
+
+data "aws_iam_policy_document" "ecs_task_role" {
+  statement {
+    actions = [
+      "ssm:*"
+    ]
+    effect = "Allow"
+    resources = ["*"]
+  }
+  statement {
+    actions = [
+      "logs:*"
+    ]
+    effect = "Allow"
+    resources = ["*"]
+  }
+  statement {
+    actions = [
+      "ec2:*"
+    ]
+    effect = "Allow"
+    resources = ["*"]
+  }
+  statement {
+    actions = [
+      "kms:*"
+    ]
+    effect = "Allow"
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role" "ecs_task_role" {
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+}
+
+resource "aws_iam_role_policy" "allow_ssm_parameters_policy" {
+  policy = data.aws_iam_policy_document.ecs_task_role.json
+  role = aws_iam_role.ecs_task_role.id
+}
+
 resource "aws_ecs_task_definition" "ecs_app_task_definition" {
   depends_on = [aws_ecr_repository.ecs_app_repository]
   container_definitions = <<EOT
@@ -21,6 +72,7 @@ resource "aws_ecs_task_definition" "ecs_app_task_definition" {
         "image": "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/ecs_app:latest",
         "name": "${local.container_name}",
         "memory": 512,
+        "taskRoleArn": "${aws_iam_role.ecs_task_role.arn}",
         "command": ["--profile", "aws"],
         "portMappings": [
           {
