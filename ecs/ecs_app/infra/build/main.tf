@@ -119,4 +119,9 @@ resource "aws_codebuild_project" "db_migrate" {
     buildspec = file("${path.module}/db_migrate.yml")
   }
   source_version = "master"
+  vpc_config {
+    security_group_ids = [aws_security_group.psql_security_group.id, aws_security_group.https_allow_security_group.id]
+    subnets = var.build_subnets
+    vpc_id = var.vpc_id
+  }
 }

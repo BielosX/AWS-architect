@@ -22,6 +22,7 @@ phases:
       - export QUERY="CREATE USER $APP_USER_NAME WITH NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '${USER_PASS}'"
       - psql -c "DROP ROLE IF EXISTS $APP_USER_NAME" $DBNAME
       - psql -c "${QUERY}" $DBNAME
+      - psql -c "GRANT CREATE ON DATABASE $DBNAME TO $APP_USER_NAME" $DBNAME
       - psql -c "SELECT rolname FROM pg_roles" $DBNAME
       - aws ssm put-parameter --name $USER_PASS_KEY --value $USER_PASS --type "SecureString" --overwrite
       - aws ssm put-parameter --name $USER_NAME_KEY --value $APP_USER_NAME --type "String" --overwrite
