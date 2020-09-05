@@ -1,0 +1,17 @@
+version: 0.2
+
+env:
+  parameter-store:
+    USER_PASS: "/ecs_app/db_pass"
+    USER_NAME: "/ecs_app/db_user"
+    PGHOST: "/psql/url"
+
+phases:
+  install:
+    commands:
+      - yum update -y
+      - yum install maven -y
+  build:
+    commands:
+      - echo $PWD
+      - cd ecs/ecs_app && mvn initialize -P migrate-db -DpsqlHost=$PGHOST -DpsqlUser=$USER_NAME -DpsqlPasswd=$USER_PASS

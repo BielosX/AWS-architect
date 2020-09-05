@@ -132,6 +132,10 @@
         <imageName>${project.artifactId}</imageName>
         <awsRegion>eu-west-1</awsRegion>
         <awsAccountId>1234</awsAccountId>
+        <psqlHost>localhost</psqlHost>
+        <psqlPort>5432</psqlPort>
+        <psqlUser>root</psqlUser>
+        <psqlPasswd>root</psqlPasswd>
     </properties>
 
     <build>
@@ -463,13 +467,13 @@
                                 <phase>initialize</phase>
                                 <configuration>
                                     <driver>org.postgresql.Driver</driver>
-                                    <url>jdbc:postgresql://localhost:5432/appdb</url>
+                                    <url>jdbc:postgresql://${psqlHost}:${psqlPort}/appdb</url>
                                     <connectRetries>10</connectRetries>
                                     <schemas>
                                         <schema>first</schema>
                                     </schemas>
-                                    <user>root</user>
-                                    <password>root</password>
+                                    <user>${psqlUser}</user>
+                                    <password>${psqlPasswd}</password>
                                 </configuration>
                             </execution>
                         </executions>

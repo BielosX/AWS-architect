@@ -101,3 +101,22 @@ resource "aws_codebuild_project" "ecs_app_init_db" {
     vpc_id = var.vpc_id
   }
 }
+
+resource "aws_codebuild_project" "db_migrate" {
+  name = "db_migrate"
+  service_role = aws_iam_role.codebuild_role.arn
+  artifacts {
+    type = "NO_ARTIFACTS"
+  }
+  environment {
+    compute_type = "BUILD_GENERAL1_SMALL"
+    image = "aws/codebuild/amazonlinux2-x86_64-standard:3.0"
+    type = "LINUX_CONTAINER"
+  }
+  source {
+    type = "GITHUB"
+    location = "https://github.com/BielosX/AWS-architect.git"
+    buildspec = file("${path.module}/db_migrate.yml")
+  }
+  source_version = "master"
+}

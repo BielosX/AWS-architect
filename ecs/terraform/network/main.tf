@@ -13,7 +13,7 @@ data "aws_availability_zones" "available_zones" {
 
 locals {
   private_subnets_cidr = ["10.0.1.0/24", "10.0.2.0/24"]
-  public_subnets_cidr = ["10.0.3.0/24", "10.0.0.4/24"]
+  public_subnets_cidr = ["10.0.3.0/24", "10.0.4.0/24"]
   zone_names = data.aws_availability_zones.available_zones.names
   number_of_zones = length(local.zone_names)
 }
@@ -37,7 +37,7 @@ resource "aws_subnet" "public_subnets" {
   }
   cidr_block = each.value
   map_public_ip_on_launch = true
-  availability_zone = local.zone_names[index(local.private_subnets_cidr, each.value) % local.number_of_zones]
+  availability_zone = local.zone_names[index(local.public_subnets_cidr, each.value) % local.number_of_zones]
 }
 
 resource "aws_eip" "elastic_ip" {

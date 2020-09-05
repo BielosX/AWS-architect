@@ -22,10 +22,12 @@ resource "aws_ecs_task_definition" "ecs_app_task_definition" {
         "name": "${local.container_name}",
         "memory": 512,
         "command": ["--profile", "aws"],
-        "portMappings": {
-          "containerPort": 4567,
-          "hostPort": 0
-        },
+        "portMappings": [
+          {
+            "containerPort": 4567,
+            "hostPort": 0
+          }
+        ],
         "logConfiguration": {
           "logDriver": "awslogs",
           "options": {
@@ -52,7 +54,7 @@ resource "aws_ecs_service" "ecs_app_service" {
   task_definition = aws_ecs_task_definition.ecs_app_task_definition.arn
   load_balancer {
     container_name = local.container_name
-    container_port = 0
+    container_port = 4567
     target_group_arn = var.lb_target_group
   }
 }
