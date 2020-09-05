@@ -72,7 +72,6 @@ resource "aws_ecs_task_definition" "ecs_app_task_definition" {
         "image": "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/ecs_app:latest",
         "name": "${local.container_name}",
         "memory": 512,
-        "taskRoleArn": "${aws_iam_role.ecs_task_role.arn}",
         "command": ["--profile", "aws"],
         "portMappings": [
           {
@@ -91,6 +90,7 @@ resource "aws_ecs_task_definition" "ecs_app_task_definition" {
     ]
   EOT
   family = "ecs_app"
+  task_role_arn = aws_iam_role.ecs_task_role.arn
 }
 
 data "aws_ecs_cluster" "ecs_cluster" {
