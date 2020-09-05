@@ -17,6 +17,7 @@ resource "aws_ecs_task_definition" "ecs_app_task_definition" {
         "image": "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/ecs_app:latest",
         "name": "ecs_app",
         "memory": 512,
+        "command": ["--profile", "aws"],
         "logConfiguration": {
           "logDriver": "awslogs",
           "options": {

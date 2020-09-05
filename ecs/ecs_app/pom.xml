@@ -100,6 +100,31 @@
             <artifactId>build-helper-maven-plugin</artifactId>
             <version>3.2.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-configuration2</artifactId>
+            <version>2.7</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-ssm</artifactId>
+            <version>1.11.855</version>
+        </dependency>
+        <dependency>
+            <groupId>com.beust</groupId>
+            <artifactId>jcommander</artifactId>
+            <version>1.78</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>1.9.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.8</version>
+        </dependency>
     </dependencies>
 
     <properties>
@@ -180,7 +205,6 @@
                             <exclude>org.sonatype.plexus:*</exclude>
                             <exclude>org.codehaus.plexus:*</exclude>
                             <exclude>org.codehaus.classworlds:*</exclude>
-                            <exclude>commons-codec:*</exclude>
                             <exclude>org.ow2.asm:*</exclude>
                             <exclude>org.eclipse.aether:*</exclude>
                             <exclude>io.fabric8:docker-maven-plugin:*</exclude>

@@ -7,6 +7,7 @@ services:
     networks:
       - the_network
     container_name: "ecs_app"
+    command: ["--profile", "local"]
   db:
     ports:
       - "5432:5432"

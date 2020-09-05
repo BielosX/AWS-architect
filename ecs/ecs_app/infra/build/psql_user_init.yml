@@ -4,10 +4,12 @@ env:
   variables:
     DBNAME: "appdb"
     PGUSER: "master"
-    USER_PASS_KEY: "/psql/ecs_app_pass"
+    APP_USER_NAME: "ecs_app"
+    USER_PASS_KEY: "/ecs_app/db_pass"
+    USER_NAME_KEY: "/ecs_app/db_user"
   parameter-store:
     PGHOST: "/psql/url"
-    PGPASSWORD: "postgres_master_password"
+    PGPASSWORD: "/psql/postgres_master_password"
 
 phases:
   install:
@@ -17,8 +19,9 @@ phases:
   build:
     commands:
       - export USER_PASS=$(pwgen -s 32 1)
-      - export QUERY="CREATE USER ecs_app WITH NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '${USER_PASS}'"
-      - psql -c "DROP ROLE IF EXISTS ecs_app" $DBNAME
+      - export QUERY="CREATE USER $APP_USER_NAME WITH NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '${USER_PASS}'"
+      - psql -c "DROP ROLE IF EXISTS $APP_USER_NAME" $DBNAME
       - psql -c "${QUERY}" $DBNAME
       - psql -c "SELECT rolname FROM pg_roles" $DBNAME
       - aws ssm put-parameter --name $USER_PASS_KEY --value $USER_PASS --type "SecureString" --overwrite
+      - aws ssm put-parameter --name $USER_NAME_KEY --value $APP_USER_NAME --type "String" --overwrite

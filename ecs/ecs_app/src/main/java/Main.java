@@ -1,3 +1,4 @@
+import com.beust.jcommander.JCommander;
 import com.google.gson.Gson;
 import com.zaxxer.hikari.HikariDataSource;
 import org.jooq.DSLContext;
@@ -11,11 +12,17 @@ import static org.jooq.codegen.ecs.app.tables.Books.BOOKS;
 
 public class Main {
     public static void main(String[] args) {
+        CmdParams params = new CmdParams();
+        JCommander.newBuilder()
+                .addObject(params)
+                .build()
+                .parse(args);
+        PropertiesProvider properties = PropertiesProviderFactory.crate(params.profile);
         HikariDataSource dataSource = new HikariDataSource();
         dataSource.setDriverClassName("org.postgresql.Driver");
-        dataSource.setJdbcUrl("jdbc:postgresql://db/appdb");
-        dataSource.setUsername("root");
-        dataSource.setPassword("root");
+        dataSource.setJdbcUrl(properties.getString("jdbc_url"));
+        dataSource.setUsername(properties.getString("db_user"));
+        dataSource.setPassword(properties.getString("db_pass"));
         DSLContext context = DSL.using(dataSource, POSTGRES);
         Gson gson = new Gson();
 

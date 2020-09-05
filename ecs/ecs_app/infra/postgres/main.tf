@@ -32,6 +32,10 @@ resource "aws_security_group" "db_security_group" {
   }
 }
 
+locals {
+  db_name = "appdb"
+}
+
 resource "aws_db_instance" "postgresql_instance" {
   instance_class = "db.t2.micro"
   engine = "postgres"
@@ -42,12 +46,18 @@ resource "aws_db_instance" "postgresql_instance" {
   password = random_password.postgres_master_pass.result
   storage_type = "gp2"
   db_subnet_group_name = aws_db_subnet_group.private_subnets.name
-  name = "appdb"
+  name = local.db_name
   vpc_security_group_ids = [aws_security_group.db_security_group.id]
   skip_final_snapshot = true
 }
 
-resource "aws_ssm_parameter" "postgres_url_parameter" {
+resource "aws_ssm_parameter" "ecs_app_jdbc_url" {
+  name = "/ecs_app/jdbc_url"
+  type = "String"
+  value = "jdbc:postgresql://${aws_db_instance.postgresql_instance.address}:${aws_db_instance.postgresql_instance.port}/${local.db_name}"
+}
+
+resource "aws_ssm_parameter" "postgres_url" {
   name = "/psql/url"
   type = "String"
   value = aws_db_instance.postgresql_instance.address
@@ -55,7 +65,7 @@ resource "aws_ssm_parameter" "postgres_url_parameter" {
 
 resource "aws_ssm_parameter" "postgres_master_password" {
   depends_on = [aws_db_instance.postgresql_instance]
-  name = "postgres_master_password"
+  name = "/psql/postgres_master_password"
   type = "SecureString"
   value = random_password.postgres_master_pass.result
 }
