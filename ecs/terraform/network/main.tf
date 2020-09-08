@@ -23,6 +23,7 @@ resource "aws_subnet" "private_subnets" {
   vpc_id = aws_vpc.cluster_vpc.id
   tags = {
     Name = var.deployment_tag
+    Type = "Private"
   }
   cidr_block = each.value
   map_public_ip_on_launch = false
@@ -34,6 +35,7 @@ resource "aws_subnet" "public_subnets" {
   vpc_id = aws_vpc.cluster_vpc.id
   tags = {
     Name = var.deployment_tag
+    Type = "Public"
   }
   cidr_block = each.value
   map_public_ip_on_launch = true
