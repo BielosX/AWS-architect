@@ -21,7 +21,7 @@ data "aws_subnet_ids" "private_subnets" {
 module "load_balancer" {
   source = "./loadbalancer"
   vpc_id = var.vpc_id
-  public_subnets = data.aws_subnet_ids.public_subnets
+  public_subnets = data.aws_subnet_ids.public_subnets.ids
 }
 
 module "ecs_app" {
@@ -34,11 +34,11 @@ module "postgres" {
   source = "./postgres"
   region = var.region
   vpc_id = var.vpc_id
-  db_subnets = data.aws_subnet_ids.private_subnets
+  db_subnets = data.aws_subnet_ids.private_subnets.ids
 }
 
 module "build" {
   source = "./build"
   vpc_id = var.vpc_id
-  build_subnets = data.aws_subnet_ids.private_subnets
+  build_subnets = data.aws_subnet_ids.private_subnets.ids
 }
