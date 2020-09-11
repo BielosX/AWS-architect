@@ -82,6 +82,11 @@ resource "aws_iam_role_policy_attachment" "attach_ssm_policy" {
   role = aws_iam_role.ec2_cluster_role.id
 }
 
+resource "aws_iam_role_policy_attachment" "attach_ssm_read_only_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
+  role = aws_iam_role.ec2_cluster_role.id
+}
+
 resource "aws_iam_instance_profile" "ec2_cluster_profile" {
   role = aws_iam_role.ec2_cluster_role.name
 }
@@ -93,45 +98,33 @@ data "aws_caller_identity" "current" {}
 locals {
   current_region = data.aws_region.current.name
   cloud_watch_agent_link = "https://s3.${local.current_region}.amazonaws.com/amazoncloudwatch-agent-${local.current_region}/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
-  cloud_watch_agent_config_file = "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json"
   account_id = data.aws_caller_identity.current.account_id
-  cw_agent_config_bucket_name = "${local.account_id}-${data.aws_region.current.name}-cw-agent-config"
-  cw_agent_conf_filename = "amazon-cloudwatch-agent.json"
 }
 
-resource "aws_s3_bucket" "cloudwatch_agent_config_bucket" {
-  bucket = local.cw_agent_config_bucket_name
-  acl = "private"
-  force_destroy = true
-}
-
-resource "aws_s3_bucket_object" "cw_agent_config" {
-  bucket = aws_s3_bucket.cloudwatch_agent_config_bucket.id
-  key = local.cw_agent_conf_filename
-  source = "${path.module}/${local.cw_agent_conf_filename}"
+resource "aws_ssm_parameter" "cloudwatch_config" {
+  name = "/cloudwatch/agent/config"
+  type = "String"
+  value = file("${path.module}/amazon-cloudwatch-agent.json")
 }
 
 resource "aws_launch_template" "cluster_ec2_launch_template" {
-  depends_on = [aws_ecs_cluster.cluster, aws_s3_bucket_object.cw_agent_config]
+  depends_on = [aws_ecs_cluster.cluster]
   tags = {
     Name = var.deployment_tag
   }
   user_data = base64encode(
-          <<EOF
+          <<-EOF
             #!/bin/bash -xe
-            echo "ECS_CLUSTER=${aws_ecs_cluster.cluster.name}" >> /etc/ecs/ecs.config
-            echo "ECS_ENABLE_CONTAINER_METADATA=true" >> /etc/ecs/ecs.config
-            echo "ECS_ENABLE_TASK_IAM_ROLE=true" >> /etc/ecs/ecs.config
-            echo "ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true" >> /etc/ecs/ecs.config
-            echo "AWS_DEFAULT_REGION=${data.aws_region.current.name}" >> /etc/ecs/ecs.config
-            echo '["json-file","syslog","awslogs","none"]' >> /etc/ecs/ecs.config
-            yum install -y https://s3.${local.current_region}.amazonaws.com/amazon-ssm-${local.current_region}/latest/linux_amd64/amazon-ssm-agent.rpm
-            systemctl enable amazon-ssm-agent
-            systemctl start amazon-ssm-agent
-            wget ${local.cloud_watch_agent_link}
-            rpm -U ./amazon-cloudwatch-agent.rpm
-            aws s3 cp "s3://${aws_s3_bucket.cloudwatch_agent_config_bucket.bucket}/${local.cw_agent_conf_filename}" ${local.cloud_watch_agent_config_file}
-            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:${local.cloud_watch_agent_config_file}
+            exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+              echo "ECS_CLUSTER=${aws_ecs_cluster.cluster.name}" >> /etc/ecs/ecs.config
+              echo "ECS_ENABLE_CONTAINER_METADATA=true" >> /etc/ecs/ecs.config
+              echo "ECS_ENABLE_TASK_IAM_ROLE=true" >> /etc/ecs/ecs.config
+              echo "ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true" >> /etc/ecs/ecs.config
+              echo "AWS_DEFAULT_REGION=${data.aws_region.current.name}" >> /etc/ecs/ecs.config
+              echo '["json-file","syslog","awslogs","none"]' >> /etc/ecs/ecs.config
+              curl ${local.cloud_watch_agent_link} -o amazon-cloudwatch-agent.rpm
+              rpm -U ./amazon-cloudwatch-agent.rpm
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${aws_ssm_parameter.cloudwatch_config.name}
           EOF
   )
   instance_type = "t2.micro"
