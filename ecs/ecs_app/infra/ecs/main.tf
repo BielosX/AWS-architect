@@ -1,6 +1,29 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+module "ecs_app_container_definition" {
+  source  = "cloudposse/ecs-container-definition/aws"
+  version = "0.41.0"
+  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/ecs_app:latest"
+  container_name = local.container_name
+  container_memory = 512
+  command = ["--profile", "aws"]
+  port_mappings = [
+    {
+      containerPort = 4567
+      hostPort = 0
+      protocol = "tcp"
+    }
+  ]
+  log_configuration = {
+    logDriver = "awslogs"
+    options = {
+      awslogs-group = aws_cloudwatch_log_group.ecs_app_log_group.name,
+      awslogs-region = data.aws_region.current.name
+    }
+  }
+}
+
 resource "aws_cloudwatch_log_group" "ecs_app_log_group" {
   name = "ecs_app_log_group"
 }
@@ -27,27 +50,9 @@ data "aws_iam_policy_document" "ecs_assume" {
 data "aws_iam_policy_document" "ecs_task_role" {
   statement {
     actions = [
-      "ssm:*"
-    ]
-    effect = "Allow"
-    resources = ["*"]
-  }
-  statement {
-    actions = [
-      "logs:*"
-    ]
-    effect = "Allow"
-    resources = ["*"]
-  }
-  statement {
-    actions = [
-      "ec2:*"
-    ]
-    effect = "Allow"
-    resources = ["*"]
-  }
-  statement {
-    actions = [
+      "ssm:*",
+      "logs:*",
+      "ec2:*",
       "kms:*"
     ]
     effect = "Allow"
@@ -66,29 +71,7 @@ resource "aws_iam_role_policy" "allow_ssm_parameters_policy" {
 
 resource "aws_ecs_task_definition" "ecs_app_task_definition" {
   depends_on = [aws_ecr_repository.ecs_app_repository]
-  container_definitions = <<EOT
-    [
-      {
-        "image": "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/ecs_app:latest",
-        "name": "${local.container_name}",
-        "memory": 512,
-        "command": ["--profile", "aws"],
-        "portMappings": [
-          {
-            "containerPort": 4567,
-            "hostPort": 0
-          }
-        ],
-        "logConfiguration": {
-          "logDriver": "awslogs",
-          "options": {
-            "awslogs-group": "${aws_cloudwatch_log_group.ecs_app_log_group.name}",
-            "awslogs-region": "${data.aws_region.current.name}"
-          }
-        }
-      }
-    ]
-  EOT
+  container_definitions = module.ecs_app_container_definition.json_map_encoded_list
   family = "ecs_app"
   task_role_arn = aws_iam_role.ecs_task_role.arn
 }
