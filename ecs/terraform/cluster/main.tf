@@ -124,6 +124,7 @@ resource "aws_launch_template" "cluster_ec2_launch_template" {
               echo '["json-file","syslog","awslogs","none"]' >> /etc/ecs/ecs.config
               curl ${local.cloud_watch_agent_link} -o amazon-cloudwatch-agent.rpm
               rpm -U ./amazon-cloudwatch-agent.rpm
+              yum install -y amazon-efs-utils
               /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${aws_ssm_parameter.cloudwatch_config.name}
           EOF
   )
