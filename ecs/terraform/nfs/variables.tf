@@ -1,5 +1,5 @@
-variable "deployment_tag" {
-  type = string
+variable "private_subnets" {
+  type = list(string)
 }
 
 variable "availability_zones" {
