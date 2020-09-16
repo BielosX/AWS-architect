@@ -5,26 +5,6 @@ resource "aws_ecs_cluster" "cluster" {
   }
 }
 
-resource "aws_security_group" "cluster_security_group" {
-  vpc_id = var.vpc_id
-
-  ingress {
-    from_port = 0
-    protocol = "-1"
-    to_port = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  egress {
-    from_port = 0
-    protocol = "-1"
-    to_port = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name = var.deployment_tag
-  }
-}
-
 data "aws_ssm_parameter" "recommended_ami" {
   name = "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
 }
@@ -87,6 +67,11 @@ resource "aws_iam_role_policy_attachment" "attach_ssm_read_only_policy" {
   role = aws_iam_role.ec2_cluster_role.id
 }
 
+resource "aws_iam_role_policy_attachment" "attach_efs_full_access_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess"
+  role = aws_iam_role.ec2_cluster_role.id
+}
+
 resource "aws_iam_instance_profile" "ec2_cluster_profile" {
   role = aws_iam_role.ec2_cluster_role.name
 }
@@ -126,11 +111,12 @@ resource "aws_launch_template" "cluster_ec2_launch_template" {
               rpm -U ./amazon-cloudwatch-agent.rpm
               yum install -y amazon-efs-utils
               /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${aws_ssm_parameter.cloudwatch_config.name}
+              mount -t efs -o tls,iam ${var.docker_volumes_fs_id} /var/lib/docker/volumes
           EOF
   )
   instance_type = "t2.micro"
   image_id = data.aws_ssm_parameter.recommended_ami.value
-  vpc_security_group_ids = [aws_security_group.cluster_security_group.id]
+  vpc_security_group_ids = [var.cluster_security_group]
   key_name = var.key_pair
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2_cluster_profile.name

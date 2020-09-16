@@ -25,3 +25,11 @@ variable "subnets" {
 variable "key_pair" {
   type = string
 }
+
+variable "docker_volumes_fs_id" {
+  type = string
+}
+
+variable "cluster_security_group" {
+  type = string
+}
